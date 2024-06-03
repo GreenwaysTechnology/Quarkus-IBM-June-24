@@ -1,0 +1,441 @@
+
+			      Quarkus
+....................................................................................
+
+What is Quarkus?
+  Quarkus is java or JEE frame work and platform to build "modern cloud native" or "container native" or desktop "native java applications".
+
+What is native?
+  native is nothing but operating system.
+
+cloud native : the cloud operating system
+container native: The container's os like docker(linux)
+desktop native: desktop operating system like linux,windows,mac
+
+what is native application?
+  Apps run on operating system without any vm abstractions.
+eg: notepad,powerpoint ,word,browsers
+
+Can you run java apps without JVM?
+
+We cant run java apps without JVM..
+
+But now a days 
+
+We can run apps without jvm as well......
+
+
+Why java was created?
+  Java was created to build platform independant apps
+  Java achives platform indepandent via "JVM".
+
+ Yes! without jvm generally we cant run java apps
+but Now a days without jvm also you can run java apps- do you know how?
+"Native"
+
+How to turn jvm based apps into native apps?
+
+ native apps are written using "c" language.
+ java apps can be converted into c code and then you can deploy on "desk top or container operating system"
+
+	The technology we have called "GraalVM and HotSpot"
+
+Why jvm based technology is not suitable now days?
+
+Now days, we deploy apps on the cloud , containers where we need application start up very fast,less memory foot print.
+
+in order to build apps to target cloud,containers to imporve performance we need mordern tech stack - GraalVM.
+
+..................................................................................
+			 GraalVM How it was inspired
+.................................................................................
+
+In order to understand how GraalVM was created, We need to understand "Java compilers".
+
+
+Types of compilers:
+
+1.Source code compiler - java source code to byte code - javac
+
+Types of source code compiler
+ 1.javac
+ 2.aot(ahead of time compilation) compiler	
+
+2.Runtime compiler - JIT
+
+Runtime Compiler: Hot Spot -Name of the Runtime compiler.
+
+What is JIT?
+  Runtime compiler,in Oracle JDK, Or Open JDK , the compiler name is "HotSpot".
+
+Two types of JIT?
+
+1.C1 Compiler
+2.C2 Compiler
+
+ Both are compilers which produce optimized code in order to excute by the interpreter.
+
+When C1 was used and C2 used?
+
+  ->C1 - Client - COREJAVA
+  ->C2 - Server - J2EE
+
+In olden days (before java 5), if you are running core java apps, in order to optimize 
+
+ java -client MyApp
+ 
+  Runtime uses C1 compiler to optimize the code ,before interpreter executes the      core java code .
+
+ java -server MyApp
+   
+  Runtime uses C2 compiler to optimize the code ,before interpreter executes the        server side code .
+
+From  Java 5 on wards, c1 became optional in server and core apps- "they merged one."
+
+ From Java 5 , both compilers are used together.
+
+  first c1 optimize the code, and later c2 optimize the code.
+
+
+AOT and JIT
+  Both are same , in order to improve code execution.
+
+AOT : Before code execution, byte code been optimized..
+
+JIT:  During code execution, byte code been optimized.
+ C1 , C2
+
+In java 8
+
+java MyApp  (coimbine both c1 and c2)
+
+Both c1 and c2 compiler written in c language.
+
+Oracle wanted to optimize the "C2" Compiler in different way, Oracle wanted to use C2 compiler as pluggable compiler.
+
+Oracle wanted to introduce new compiler in the place of "C2" - Pluggable compiler.
+....................................................................................
+
+Java 9 proposed a spec called "c2" compiler in java language itself.
+
+JEP: Java Enchancement Proposal....
+
+JDK Features
+  (JIT) compiler features
+
+C1-->C2 => ?
+
+C2--->JVMCI -- says any body can write compiler not in c/c++ rather java itself.
+
+C2--->JAVA Compiler
+
+Oracle wrote the first compiler in java based on JVMCI specification called "graal"
+....................................................................................
+				Graal Compiler
+....................................................................................
+
+Graal is first c2 plugable compiler written by Oracle based on "JVMCI" Specification.
+
+After Java 11, Graal default c2 compiler.....
+
+C2 ---GRAAL compiler------> GraallVM  is platform  inspired from "Graal Compiler"
+
+Based on graal oracle created the technology called "GRAAL VM" Technology....
+
+GrallVM = {native image,turfle framework}
+
+
+GraalVM is extension of "Graal compiler" which was introduced in java 9 onwards.
+
+GraalVM is just platform/tool to convert java apps into native binary apps.
+
+Graal VM supports many other lanuages
+ js,python,Ruby, R,WASM
+
+Java Apps Running env
+.....................
+
+Running java apps with jvm mode.
+...............................
+
+1. Bare Metal desktop | Server
+    os + JVM - windows + jvm 
+2. Virtual Machine Env 
+     where we can have more os - on that os we can have JVM...
+3. Containers - Docker
+     Where we can have light weight vm on which we can run java apps
+     still we require JVM.
+4. Cloud
+      Where we can have os , vm or containers - still require JVM 
+
+
+Running java apps without jvm mode -native mode.
+.................................................
+1. Bare Metal desktop | Server
+    os - windows 
+2. Virtual Machine Env 
+     where we can have more os - on that os we dont need
+3. Containers - Docker
+     Where we can have light weight vm on which we can run java apps
+     without jvm
+4. Cloud
+      Where we can have os , vm or containers we dont need jvm
+
+
+You can run "Quarkus" apps 
+   in two mode
+
+=> JVM Mode -  Legacy
+=> Native Mode - Modern
+     =>Bare Metal Desktop - os can be any thing
+     =>Container Native 
+     =>Cloud Native 
+
+.....................................................................................
+				Java Standards
+.....................................................................................
+Sun Micro systems setup a body/committee  in order to standarize the java technology.
+  -JCP
+
+What is JCP ?
+ Java Community Process is non profitable organization whoes responsability is to standardize the java technology (java echo system).
+
+
+What is JEP?
+  JDK Enchament Proposal, Oracle own body to enchance the features of java
+ The JDK Enhancement Proposal (or JEP) is a process drafted by Oracle Corporation for collecting proposals for enhancements to the Java Development Kit and OpenJDK.
+
+
+JSR-Java Specifcation Request.
+
+Every JSR has unique no - JSR-223
+
+Java Technology Classification
+
+1.JSE
+2.JEE
+3.JME
+
+1.JSE - Java Standard Edition
+  -Java language Spec
+  -Java VM Spec
+
+2.JEE - Java Enterise Edition
+ The Java Enterprise Edition offers APIs and tools for developing multitier enterprise applications.
+
+ -Application Development Specs
+    JPA Spec  - Vendor netural ORM Solutions
+    JSON Binding - JSON-B  
+    Java Servlet 
+    JAX-RS - Building Resfull API
+    JAX-WS - Building xml based webservices -SOAP Webservices
+    Bean Validation
+    JTA  - Java Transaction API
+    CDI - Context dependency injection
+    etc...
+ -Container Specs 
+    Run time for java ee apps- websphere,weblogic....jboss,Tomcat
+
+
+3.JME - Java Micro Edition
+   For building Device Apps , Mobile Development.
+   JME is mother of Android Technology.
+
+.....................................................................................
+		 JEE Specification and implementations
+.....................................................................................
+  
+Are we follwing entire jee specifications in java development?
+
+Java frameworks such as spring framework has not implemented all jee specification.
+spring has implemented core secifications  - servlet,jpa etc......
+
+Why JEE Spec failed In Modern Computing?
+
+     JEE Spec was developed to build traditional "Monolothic distributed,transactional, secure Applications".
+
+Using JEE We cant build microservices, so that JEE spec failed....
+.....................................................................................
+How to build Micro services using java technology / on jvm?
+
+ Is it Spring Boot/Spring frameWork
+
+ Spring boot does not mean "Microservice",
+Spring boot is mini project/module provides "simplified automated configuration system for building java apps" - SpringBoot is just configuration system.
+
+Configuration System:
+1.Spring with XML
+2.Spring with Java 
+3.Spring with Java automated Configuration
+   ---->Spring Boot
+
+Microservices you can building using spring framework under there is project called
+			"Spring cloud"
+
+Microservices based apps you can building using "Spring cloud".
+  
+.....................................................................................
+		  Fall of Spring Cloud in Microservice development
+.....................................................................................
+
+Old Spring cloud projects mostly rely on "NetFlix" OSS Components.
+
+Spring Cloud microservice implementations was largly "Netflix".  
+
+What was problem Spring faced?
+  Spring introduced project which is not standardized by community like JCP.Which was propierty of Spring team.
+
+What is the problem ?
+  "Vendor lock"
+  if any  new feature comes, we have to wait until spring team releases.
+
+Spring was using "Netflix OSS" components in the begining, later Netflix stopped 
+suport on many components,deprecated.
+    "Failure of spring cloud projects started failing in the microservices develomement made java community very difficult."
+
+IBM,RedHat,Oracle,Microsoft started thinking how to get out of "Vendor" lock based micro service development in java echo system.
+
+ 			   Birth of One Spec
+		          "Micro Profile Spec"
+
+
+.....................................................................................
+	    What if i want to build standard based microservices based On JEE?
+
+                       "MicroProfile Specfication"
+
+
+Micro Profile addresses the need for enterprise "java microservices"
+
+  It is set of secifications for handling "microservices design patterns" 
+
+MicroProfile enables JEE Developers to leverage their existing skill set while shifiting their focus from traditional monolithic applications to Micro Services
+
+				JEE
+				 |
+			   Micro Profile
+				 |
+		     Microservice patterns and principles
+
+Microservices  are about collection of design pattern patterns.
+...................................................................................
+
+    		        JEE Specification(JAX-RS,CDI)
+				|
+		Micro Profile Specifcation(MicroProfile config)
+				|
+       ------------------------------------------------------------
+       |     |               |    |
+    Quarkus  openliberty   TomEE  Payara etc....
+
+
+Microservices specs+ Micropfile Spec+JEE Spec= Microservice implementation frameworks
+
+
+
+What is Quarkus?
+  Quarkus is the reference implementation of "JEE/MicroProfile Spec" framework.
+
+
+Why Quarkus?
+
+=> Quarkus is standard based(JEE/MicroProfile)
+=> Quarkus is cloud/container/desktop native ready technology powered by graalvm
+=> Quarkus is based on Non Blocking Architecture via Vert.x
+=> Quarkus is Reactive Framework by default via Mutiny
+
+MicroProfile Specs:
+
+1.JAX-RS - To create HTTP based Microservices-
+2.CDI - Context Dependency Injection - DI - Beans
+3.JSON-B
+4.Configuration
+5.Falut Management
+6.Health
+7.Mertics
+8.Reactive Messaging- How to even driven Microserivices
+etc.....
+
+
+....................................................................................
+....................................................................................
+			MicroProfile Implmentation inside Quarkus
+..................................................................................
+
+Quarkus Architecture with respect specification
+
+
+   				QuarkusApp
+				    |
+	  		    Quarkus Api/Modules
+				   |
+			    ---------------------------------
+		            |       |     |       |          |
+			   
+			 SmallRye Vertx  RestEasy Hibernate  Mutiny ...
+			   |
+                       MicroProfile Spec
+                             +
+                            JEE 
+
+
+SmallRye:
+  It is the direct  reference implementation of MicroProfile Spec.
+  Quarkus extends SmallRye for building micro servics ,Native Applications.
+
+Ecplise Vert.x:
+  Quarkus web apps are deployed on the top of "Vert.X Engine" which is eq to tomcat.
+  We never use tomcat like blocking containers.
+  Vertx modules(apis) also can be used inside Quarkus apps.
+
+RestEasy:
+	RestEasy is framework used to build  RESTful Web Services  based on JEE
+ JAX-RS Spec.
+        RestEasy has been tailered to match modern microservices.
+
+Hibernate:
+      It is ORM framework used inside Quarkus to implement JPA based 
+
+Mutiny:
+    It is reactive lib used inside Quarks to enable non blocking,async reactive programming.
+
+Quarkus Features:
+
+1.Implements MicroProfile specification via smallRye project
+2.Quarkus implements Reactive Stack via smallRye Muntiny
+3.Quarkus implements non blocking architecture via Vert.x Engine
+4.Quarkus supports Kubernets,docker ready images
+5.Quarkus supports native apps via GraalVM
+     -Mandrel: A specialized distribution of GraalVM for Quarkus
+6.Quarkus supports hot reloading
+.....................................................................................
+...................................................................................
+				Quarkus Apps
+
+Quarkus apps are microservices , so we can create microservices in many ways.
+
+Every Micro services are based on API.
+
+API Technology:
+................
+1.REST API
+2.GraphQL API
+3.Grpc API
+
+In Quarkus we can design REST API,GRAPHQL API,Grpc API.
+
+Http Based Microservice-REST Full Arch:
+
+=>How to create REST API?
+=>Depedency Injection -  CDI
+=>ORM using JPA With Hibernate
+
+Quarkus Apps can be 
+
+ =>Reactive
+	Means by default is non blocking 
+ =>Non Reactive
+        Means by default is blocking 
+....................................................................................
+			  Non Blocking and Reactive Programming
+....................................................................................
