@@ -1,0 +1,21 @@
+
+
+Quarkus:
+
+1.Quarkus Arch and Quarkus Tech
+    NonBlocking,Vertx Engine, Reactive Programming and its implementation
+2.Quarkus API Building
+    REST
+3.Quarkus API with database integration
+   REST With Database integration using JPA With Hiberate
+
+4.Microservices patterns implementation
+ -Service Communication
+ -Event Sourcing , Event Driven Microservices
+ -Service Discovery and Registry with loading balancing
+ -Distributed configuration
+ -Microservices and distributted Logging
+ -Microservices and caching
+ -Deployments - Cloud Nattive deployment
+   -Containers
+   -Native application using GraalVM 

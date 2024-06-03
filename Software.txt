@@ -1,0 +1,5 @@
+Software Requriements:
+
+1.JDK 17 - Open JDK Or Oracle JDK
+2.IDE - intellij Idea Community Edition
+3.Docker - Docker Desktop
