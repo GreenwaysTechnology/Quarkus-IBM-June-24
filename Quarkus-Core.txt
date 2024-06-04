@@ -317,7 +317,7 @@ MicroProfile enables JEE Developers to leverage their existing skill set while s
 				 |
 		     Microservice patterns and principles
 
-Microservices  are about collection of design pattern patterns.
+Microservices  are about collection of design  patterns.
 ...................................................................................
 
     		        JEE Specification(JAX-RS,CDI)
@@ -439,3 +439,386 @@ Quarkus Apps can be
 ....................................................................................
 			  Non Blocking and Reactive Programming
 ....................................................................................
+
+Ecplise Vertx:
+ It is runtime of quarkus apps.
+ Quarkus are deployed on Vert.x Engine
+
+What is non blocking io and Blocking io?
+
+Blocking, And Non Blocking;
+...........................
+File Descriptor is just c program
+File descriptor is just array
+For every process there is single file descriptor
+When ever the process is created, file descriptor is initalized
+File descriptor is bridge bewteen application process and io channels
+File descriptor stores about information about hardware information like its address.
+file descriptor is just table created by array using c language.
+file descriptor is key-value paire structure using index and value
+
+How io operations are happing in the process and operating system?
+
+Let us take java application.
+
+Java apps are running on JVM.
+
+JVM is just process to the operating system
+
+How to write simple io operations - reading from file?
+
+private String readFromInputStream(InputStream inputStream)
+  throws IOException {
+    StringBuilder resultStringBuilder = new StringBuilder();
+    try (BufferedReader br
+      = new BufferedReader(new InputStreamReader(inputStream))) {
+        String line;
+        while ((line = br.readLine()) != null) {
+            resultStringBuilder.append(line).append("\n");
+        }
+    }
+  return resultStringBuilder.toString();
+}
+
+In the above code?
+  readLine() method is used to read byte of data from the IO Channel(hard disk).
+.....................................................................................
+			Blocking IO and Threading (Multi threading)
+...................................................................................
+
+In threading env, thread is blocked, until the data is available , thread cant continue other jobs.
+.....................................................................................
+.....................................................................................
+				Use Case: WebServer
+....................................................................................
+if more request, more threads are created.
+
+What if i create more threads?
+
+Evils of Threads:
+
+1.when you create thread
+
+ ->It requires some amount of memory
+  if you create more threads, it requires more memory
+
+2.in order to manage memory, in 2000 linux os , introduced a concept called context switch.
+   if any thread is not used for particular period of time, that thread is moved into passive state, once the data is available it can be brought back - CPU does this job.
+
+
+C10K problem:
+  How to reduce threads, if you reduce threads, you can save memory and cpu.
+
+if you want to reduce thread,you have to look at different way of writing io programs,
+
+Each user(io) request is mapped against one single thread.
+
+.....................................................................................
+.....................................................................................
+			 Birth of Non Blocking IO Arch
+.....................................................................................
+Non Blocking implementation in linux:
+
+
+1.select + read
+  select makes api call to the kernal and return control back to process
+  Process keeps on calling kernal with read method in order to read data...
+
+
+2.Poll api
+   Poll is second api which improved select where as poll pushes data from the kernal  to application process rather than explcit read call from the application.
+  Poll introduced new programming model inside kernal called "Event Driven"
+
+
+3.Epoll api
+
+  EPoll is Third api which improved poll where as poll pushes data from the kernal to application process rather than explcit read call from the application.
+  Poll introduced new programming model inside kernal called "Event Driven"
+
+.....................................................................................
+.....................................................................................
+			IO Multiplxing implementations
+....................................................................................
+
+1.nginx
+   This is first non blocking webserver based on c10k problem.
+
+2.Node.js
+   This is second reference implementation based on non blocking arch
+
+These both implementations written in linux,that linux only supported non blocking apis.
+
+Later windows,mac,other Open BSD os introduced non blocking io apis....
+
+
+Epoll – Linux
+Kqueue –Open BSD including mac
+IOCP - Windows
+.................
+
+.....................................................................................
+			   Vertx Threading Model
+.....................................................................................
+
+Vertx provides two types of threads
+
+1.Non Blocking threads  aka Event loop threads
+   To handle non blocking io operations like webservers,tcp servers ...
+2.Blocking threads/Worker threads
+   To handle one thread , one job.
+
+
+How many non blocking threads per process(jvm)?
+
+ in node js , only one thread- This is limitation.
+ in vertx multiple non blocking threads - per cpu =2 threads
+  12 *2 =24
+  50*2 =100
+
+ incase of multiple event loop threads, which thread handles request?
+
+  Vertx uses an algorthim called "round robin"
+
+  request-1 - t1
+  request-2 -t2
+  request-24 -t24
+  request-25-t1
+.....................................................................................
+				Roles of thread
+
+1.Get IO REQUEST,deligate to kernal
+2.Process events which dispatched from the kernal
+.....................................................................................
+Reactive Programming implementation from the Quarkus is Mutiny...
+.....................................................................................
+
+Quarkus App  =  {Mutiny} => Enables vertx non blocking
+Quarkus App   = {without Mutiny} Disables vertx non blocking...
+.....................................................................................
+.....................................................................................
+			Mutiny Getting started
+.....................................................................................
+
+
+Mutiny was built by Red hat team,relased under smallRye project
+Mutiny first integrated with Quarkus, later with Vertx.
+Mutiny is reactive stream certified
+Mutiny is the perfect companion to tame the async nature of apps with non blocking io. 
+....................................................................................
+			 Core Concepts of Muntiny
+....................................................................................
+
+Publisher:
+  Object - Provider of data 
+  Who publish events
+Subscriber:
+  Object - Receiver of data
+  Who listens for events
+Subscription -
+   Object who conects Publisher and Subscriber in back end.
+Operators 
+   Are apis provided to process "stream of data"
+
+Events: - data,error,complete
+1.onItem -  onData - -> data event published by publisher when ever the data is available
+2.onFailure - onError - error event published by publisher when ever the error occurred.
+3.onComplete -  No more data /error published by publisher...
+
+
+Muntiny Publishers Types:
+
+1.Uni 
+  Emit o or 1 item
+  Mono in spring
+2.Multi 
+   1..to Many items - Stream
+ Flux in Spring
+
+
+Steps:
+1.create plain maven project and add mutiny dependency.
+
+1.create Publisher
+2.emits data or error events
+3.subscribe for data or error events.
+
+Use Case: How to emit data events?
+package org.example;
+
+import io.smallrye.mutiny.Uni;
+
+public class HelloMutiny {
+    public static void main(String[] args) {
+        Uni.createFrom().item("Hello").subscribe().with(data -> {
+            System.out.println(data);
+        });
+    }
+}
+
+Writing Publisher and Subscriber
+
+package org.example;
+
+import io.smallrye.mutiny.Uni;
+
+class Publisher {
+
+    public Uni<String> publish() {
+        return Uni.createFrom().item("Hello");
+    }
+}
+
+class Subscriber {
+    Publisher publisher = new Publisher();
+
+    public void subscribe() {
+        publisher.publish().subscribe().with(data -> System.out.println(data));
+    }
+}
+
+
+public class PublisherAndSubscriber {
+    public static void main(String[] args) {
+        Subscriber subscriber = new Subscriber();
+        subscriber.subscribe();
+
+    }
+}
+
+
+Use Case: How to emit error events?
+package org.example;
+
+import io.smallrye.mutiny.Uni;
+
+public class ErrorEvents {
+    public static void main(String[] args) {
+        Uni.createFrom().failure(new RuntimeException("oops")).subscribe().with(data->{},err->{
+            System.out.println(err);
+        });
+    }
+}
+
+How to apply data transformation - Creating uni pipe lines
+package org.example;
+
+import io.smallrye.mutiny.Uni;
+
+import java.time.Duration;
+
+public class UniPipeLines {
+    public static void main(String[] args) {
+        Uni.createFrom().item("hello")
+                .onItem().delayIt().by(Duration.ofMillis(1000))
+                .onItem().transform(data -> data.toUpperCase())
+                .subscribe().with(System.out::println);
+    }
+}
+..................................................................................
+
+Multi:
+ 0 to N items
+package org.example;
+
+import io.smallrye.mutiny.Multi;
+
+public class MultiEvents {
+    public static void main(String[] args) {
+        Multi.createFrom().items(1,2,3,4,5,6,7,8,9,10).subscribe().with(System.out::println);
+    }
+}
+
+Creating Multi From List of Items:
+ May be List or Array or Set
+
+package org.example;
+
+import io.smallrye.mutiny.Multi;
+
+import java.util.List;
+
+public class MultiAndList {
+    public static void main(String[] args) {
+        List myList = List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+        Multi.createFrom().iterable(myList).subscribe().with(data->{
+            System.out.println(data);
+        });
+    }
+}
+
+I want to create items from 0 to 100?
+
+ We have special operator "range"
+package org.example;
+
+import io.smallrye.mutiny.Multi;
+
+public class RangeMulti {
+    public static void main(String[] args) {
+        Multi.createFrom().range(1, 25).subscribe().with(System.out::println);
+    }
+}
+
+Multi PipeLines : how process items when streaming..
+
+Transformation:
+package org.example;
+
+import io.smallrye.mutiny.Multi;
+
+public class MultiPipeLines {
+    public static void main(String[] args) {
+        Multi.createFrom().range(1, 25)
+                .onItem().transform(data -> data * 2)
+                .subscribe().with(System.out::println);
+
+    }
+}
+
+Filtering,selection
+package org.example;
+
+import io.smallrye.mutiny.Multi;
+
+public class MultiPipeLineFiltering {
+    public static void main(String[] args) {
+        Multi.createFrom().range(1, 390)
+                .filter(data -> data % 2 != 0)
+                .select().first(10)
+                .select().distinct()
+                .subscribe().with(System.out::println);
+    }
+}
+
+Handling Errors in gracefull manner
+...................................
+package org.example;
+
+import io.smallrye.mutiny.Uni;
+
+public class HandlingErrors {
+    public static void main(String[] args) {
+        Uni.createFrom().failure(new RuntimeException("oops"))
+                .onFailure().recoverWithItem("fallback")
+                .onItem().transform(data->data.toString().toUpperCase())
+                .subscribe().with(data->{
+                    System.out.println(data);
+                },err->{
+            System.out.println(err);
+        });
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
