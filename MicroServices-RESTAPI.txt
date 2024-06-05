@@ -1,0 +1,542 @@
+				Microservice Implementation
+.....................................................................................
+Microservices just archtecture, we can implement any language,any framework.
+
+Java implementation:
+1.Spring cloud
+2.Quarkus
+3.Vertx
+etc....
+.....................................................................................
+			Quarkus as Microservice implmentation
+.....................................................................................
+Quarkus is framework which implements the most of the microservice design patterns
+via Ecplise Microprofile specification.
+
+Micro Profile specification is  extension of "Microservice" design patterns.
+
+
+Domain Modeling
+................
+ProductCatelog Management
+Inventory Management
+OrderManagement
+DeliveryManagement
+
+Application Architecture
+
+ProductCataglog
+  ->Service
+
+What is service?
+
+  Service is mini application.
+  Service is sub domain in application 
+  For eg in Ecommerce domain "ProductCatglog" ,"Cusotmer Management","Order Management"
+
+How to implement service?
+
+  Service can be implemented as a java maven project...
+  Service has apis
+
+API: Application programming interface..
+ Which exposes biz logic 
+ Returns data , recevies data
+
+Service API Design:
+
+1.local api
+  apis are exposed within objects, called by other objects
+2.remote api
+  apis are exposed within objects, called by other objects/programs via networks
+
+Remote apis: (RPI)
+
+1.webservices
+   soap api /rest api/graphql api
+2.RPC
+   TCP api
+   Grpc apis
+3.MOM -Event Driven Microservices
+  Using kafka,Rabbitmq.
+..................................................................................
+			RestFull WebService Implementation
+..................................................................................
+         	  Microservice-HTTP Based Microservice
+  	  RESTFull Web Service using JAX-RS  Spec (Jakarta RESTful Web Services)
+		      using RESTEasy Framework
+.....................................................................................
+
+Jakarta RESTful Web Services is spec of JEE , implementation is RestEasy Framework..
+
+In Quarkus RestEasy has been modified for building non blocking apps
+
+
+ 			  QuarkusApp
+			      |
+	             Quarkus RestEasy Module
+			      |
+		         RestEasy Framwork
+			     |
+		   Jarkarta RestFull WebService
+
+RESTEasy:
+
+  RESTEasy is a JBoss / Red Hat project that provides various frameworks to help you build RESTful Web Services and RESTful Java applications. It is an implementation of the Jakarta RESTful Web Services, an Eclipse Foundation specification that provides a Java API for RESTful Web Services over the HTTP protocol.
+
+Moreover, RESTEasy also implements the MicroProfile REST Client specification API
+
+Quarkus team uses RESTEasy framework for building MicroService's REST API Design.
+
+Traditional RESTEasy apps are deployed on "Jboss,Apach Tomcat" like web containers.
+.....................................................................................
+			  Types of RESTFull Web services 
+
+1.Reactive web service - Highly Recommended
+2.Non Reactive web service - Not recommended
+
+
+By default,Rest apis are blocking, meaning that which is not handled by event loop thread.
+
+How to create rest api?
+
+Note:
+ Rest api we write based ON " jakarta RestFull WebServices" specification,Using Rest Easy Framwork.
+https://jakarta.ee/specifications/restful-ws/
+
+Step 1:
+create quarkus app rest-app
+
+Project Dependency:
+   <dependency>
+           <groupId>io.quarkus</groupId>
+           <artifactId>quarkus-rest</artifactId>
+   </dependency>
+
+Step 2:
+ Run quarkus app
+ >quarkus dev
+
+.....................................................................................
+			  REST API Core concepts
+.....................................................................................
+
+Resources:
+   Domain Model which expose api which are accessed by clients using urls 
+
+CustomerResource,ProductResource,PaymentResource etc....
+
+RESTEasy is annotation driven based on jakarta spec:
+
+
+package org.acme;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return "Hello from Quarkus REST";
+    }
+}
+
+Common Annoations
+ Core Package
+jakarata.ws.rs
+
+
+@Path - to map url
+@GET -  http get
+@POST - http post
+@PUT -  http put
+@DELETE - http delete.
+.....................................................................................
+			CURD  Operations
+.....................................................................................
+
+GET
+POST
+DELETE
+PUT
+
+package com.ibm.rest.api;
+
+import jakarta.ws.rs.*;
+
+@Path("customers")
+public class CustomerResource {
+
+    //api
+    @GET
+    public String findAll() {
+        return "findAll";
+    }
+
+    @POST
+    public String save() {
+        return "save";
+    }
+
+    @PUT
+    public String update() {
+        return "Update";
+    }
+
+    @DELETE
+    public String remove() {
+        return "Remove";
+    }
+}
+
+Testing:
+ Use any tool to test apis like postman
+GET    /customers
+POST   /customers
+PUT    /customers
+DELETE /customers
+
+.....................................................................................				 Nested URL
+
+Eg
+
+GET /products/reviews
+GET /customers/comments
+
+package com.ibm.rest.api;
+
+import jakarta.ws.rs.*;
+
+@Path("customers")
+public class CustomerResource {
+
+    @GET
+    @Path("comments")
+    public String findComments(){
+        return  "Customer Comments";
+   }
+
+}
+
+ GET /customers/comments
+...................................................................................
+....................................................................................
+		 How to Pass data to REST API - Input Parameter
+....................................................................................
+Data can be passed to the End Point.
+
+1.Through url - path parameter,query parameter,matrix parameter
+                Matrix parameters are similar to query param, passing more than one 		parameter
+
+2.Through payload
+    Sending data part of the http body..
+
+Path Parameter:
+...............
+
+GET /customers/1
+GET /customers/2
+GET /customers/3
+
+
+package com.ibm.rest.api.parameters.path;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+@Path("books")
+public class BookResource {
+
+    @GET
+    @Path("{Id}")
+    public String findById(@PathParam("Id") Long id) {
+        return "Book By Id " + id;
+    }
+}
+
+Testing:
+GET localhost:8080/books/20
+
+Query Parameters:
+  Passing more than one parameter
+
+GET /books/pages?totalPages=34&unit=78
+
+package com.ibm.rest.api.parameters;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+
+@Path("books")
+public class BookResource {
+
+    @GET
+    @Path("{Id}")
+    public String findById(@PathParam("Id") Long id) {
+        return "Book By Id " + id;
+    }
+
+    @Path("pages")
+    @GET
+    public String getPagesAndUnits(@QueryParam("totalPages") Long pages, @QueryParam("unit") Long unit) {
+        return "Total Pages " + pages + " " + " Total Units " + unit;
+    }
+}
+...................................................................................
+			 Default Values For Query Parameters
+....................................................................................
+When we dont pass query parameters, we can initalize the default values.
+
+
+package com.ibm.rest.api.parameters;
+
+import jakarta.ws.rs.*;
+
+@Path("books")
+public class BookResource {
+
+    @GET
+    @Path("{Id}")
+    public String findById(@PathParam("Id") Long id) {
+        return "Book By Id " + id;
+    }
+
+    @Path("pages")
+    @GET
+    public String getPagesAndUnits(@QueryParam("totalPages") @DefaultValue("1") Long pages, @QueryParam("unit") @DefaultValue("0") Long unit) {
+        return "Total Pages " + pages + " " + " Total Units " + unit;
+    }
+}
+
+GET localhost:8080/books/pages
+
+Response:
+Total Pages 1  Total Units 0
+.....................................................................................
+			Matrix Parameters
+.....................................................................................
+
+Matrix parameters and query parameters both are same, that means we can pass more number of parameters.
+
+The difference is  only delemiter ";"
+
+package com.ibm.rest.api.parameters;
+
+import jakarta.ws.rs.*;
+
+@Path("books")
+public class BookResource {
+
+    @GET
+    @Path("{Id}")
+    public String findById(@PathParam("Id") Long id) {
+        return "Book By Id " + id;
+    }
+
+    @Path("pages")
+    @GET
+    public String getPagesAndUnits(@QueryParam("totalPages") @DefaultValue("1") Long pages, @QueryParam("unit") @DefaultValue("0") Long unit) {
+        return "Total Pages " + pages + " " + " Total Units " + unit;
+    }
+
+    @GET
+    @Path("info")
+    public String getBookInfo(@MatrixParam("category") @DefaultValue("science") String category, @MatrixParam("lang") @DefaultValue("english") String lang) {
+        return "Category " + category + " " + "Language " + lang;
+
+    }
+}
+
+GET books/info;category=story;lang=english
+
+Response:
+Category story Language english
+.....................................................................................
+			How to pass payload(data) to Rest api
+....................................................................................
+
+Generally data is submitted to rest api inform of "XML,JSON".
+
+
+package com.ibm.rest.api.payload.entity;
+
+public class Order {
+    private Integer orderId;
+    private String orderStatus;
+    private Double orderValue;
+
+    public Order() {
+    }
+
+    public Order(Integer orderId, String orderStatus, Double orderValue) {
+        this.orderId = orderId;
+        this.orderStatus = orderStatus;
+        this.orderValue = orderValue;
+    }
+
+    public Integer getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Integer orderId) {
+        this.orderId = orderId;
+    }
+
+    public String getOrderStatus() {
+        return orderStatus;
+    }
+
+    public void setOrderStatus(String orderStatus) {
+        this.orderStatus = orderStatus;
+    }
+
+    public Double getOrderValue() {
+        return orderValue;
+    }
+
+    public void setOrderValue(Double orderValue) {
+        this.orderValue = orderValue;
+    }
+
+    @Override
+    public String toString() {
+        return "Order{" +
+                "orderId=" + orderId +
+                ", orderStatus='" + orderStatus + '\'' +
+                ", orderValue=" + orderValue +
+                '}';
+    }
+}
+
+
+package com.ibm.rest.api.payload;
+
+import com.ibm.rest.api.payload.entity.Order;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+
+@Path("orders")
+public class OrderResource {
+
+    @POST
+    public String save(Order order) {
+        System.out.println(order);
+        return "Order saved";
+    }
+
+}
+
+Testing 
+POST localhost:8080/orders
+
+{
+    "orderId": 1,
+    "orderStauts": "CREATED",
+    "orderValue": 1000   
+}
+
+The response 
+
+415 Unsupported Media type..
+
+By default Quarkus does not know how to convert JSON into Java Object...This means no json parser..
+
+Solution:
+ We need to add json paraser - Jackson Parser
+
+Before adding json parser dependency , we need to discuss one more concept
+.....................................................................................					Extensions
+....................................................................................
+What is extension?
+
+ extension is , project dependency- jar dependency.
+
+By default, you can have extensions, when we create new project.
+
+Think of Quarkus extensions are as your project dependencies.
+
+Extensions configure,boot and integrate a framework or technology into your quarkus application.
+
+They also do all of the heavy lifting of providing the right information to Graalvm For application to compile nativly.
+
+How do you manage extensions?
+  Management means - add,removing,list extensions
+
+There are two way to get  extensions?
+
+1.via maven or gradle
+2.via cli -quarkus command.
+
+ extension, ext          Configure extensions of an existing project.
+    list, ls              List platforms and extensions.
+    categories, cat       List extension categories.
+    add                   Add extension(s) to this project.
+    remove, rm            Remove extension(s) from this project.
+
+syntax:
+ quarkus ext ls
+ 
+
+How to add extension:
+
+quarkus ext add io.quarkus:quarkus-rest-jackson
+
+package com.ibm.rest.api.payload;
+
+import com.ibm.rest.api.payload.entity.Order;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+
+@Path("orders")
+public class OrderResource {
+
+    @POST
+    public String save(Order order) {
+        System.out.println(order);
+        return "Order saved";
+    }
+
+}
+Testing 
+POST localhost:8080/orders
+
+{
+    "orderId": 1,
+    "orderStauts": "CREATED",
+    "orderValue": 1000   
+}
+
+The response would be
+
+200 status, Order saved
+
+.....................................................................................
+			   Responses
+.....................................................................................
+
+What can be response?
+
+REST API return any one of the following as type
+
+1.String - plain/text
+2.Objects/Collections - application/json , application/xml
+3.void - No Return type , only Status - No Content
+4.Response - Response Object
+5.Reactive Type - Uni or Multi - Non Blocking api is enabled...
+
+
+
+
+
+
+
+
+

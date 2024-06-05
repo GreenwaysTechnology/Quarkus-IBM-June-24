@@ -1,0 +1,161 @@
+				Microservices
+.....................................................................................
+
+What is Monolothic?
+
+ Monoloithic is also architectural sytle to build enterprise distibuted application.
+
+
+What is Microservice?
+
+  Microservice is architectural style to build enterprise distributed application.
+
+Features:
+
+Independently deployable
+Loosely coupled
+Organized around business capabilities
+Owned by a small team
+The microservice architecture enables an organization to deliver large, complex applications rapidly, frequently, reliably and sustainably - a necessity for competing and winning in today’s world.
+
+How to start microservice development?
+
+Before development,we need to understand the design pattern or pattern language for microservice.
+
+As a java developer, we use design patterns to design object oriented system -GOF pattern.
+
+As a Microservice developer , we use Microservice design patterns.
+
+Microservice design patten evolved by the companies like amazon,netflix,google,microsoft, in their production proven use cases.
+
+Chris Richardson , who collected all best pratices and published those as "Microserivce patterns".
+
+....................................................................................
+		How to begin with patterns and implementation
+....................................................................................
+
+Software Development Stages
+
+1.Requirement Gathering
+2.High level design
+3.Low Level Design - Database Design
+4.Development - using any language and framworks
+5.Testing
+6.Deployment
+
+For all stages we have design patterns.
+
+Selecting Archiecture:
+......................
+1.Monolithic architecture 
+
+	1.Requirement Gathering
+	2.High level design
+	3.Low Level Design - Database Design
+	4.Development - using any language and framworks
+	5.Testing
+	6.Deployment
+
+2.Microservice architecture 
+
+	1.Requirement Gathering
+	2.High level design
+	3.Low Level Design - Database Design	
+	4.Development - using any language and framworks
+	5.Testing
+	6.Deployment
+
+1.Requirement Gathering:
+
+How to decompose an application into services?
+
+	1.Decompose by business capability - define services corresponding to           business capabilities
+	2.Decompose by subdomain - define services corresponding to DDD subdomains
+        .........................
+        3.Self-contained Service - design services to handle synchronous requests 	          without waiting for other services to respondnew
+        4.Service per teamnew
+	5.Strangler Application
+	5.Anti-corruption layer
+
+2.2.High level design &	Low Level Design - Database Design
+   
+ How to maintain data consistency and implement queries?
+
+High level : while designing
+1.Database per Service - each service has its own private database
+2.Shared database - services share a database
+.......................................
+Low level: during coding
+3.Saga - use sagas, which a sequences of local transactions, to maintain data  consistency across services
+4.Command-side replica - maintain a queryable replica of data in a service that     implements a command
+5.API Composition - implement queries by invoking the services that own the data and   performing an in-memory join
+6.CQRS - implement queries by maintaining one or more materialized views that can be    efficiently queried
+7.Domain event - publish an event whenever data changes
+8.Event sourcing - persist aggregates as a sequence of events
+
+Transactional messaging
+ How to publish messages as part of a database transaction?
+  1.Transactional outbox
+  2.Transaction log tailing
+  3.Polling publisher
+
+
+4.Development
+  Database Related patterns- saga,eventsourcing,transactional outbox pattern
+  How to handle cross cutting concerns?
+  Style
+  External API
+  Service discovery	
+  Reliability 
+
+
+Testing:
+How to make testing easier?
+
+1.Consumer-driven contract test - a test suite for a service that is written by the developers of another service that consumes it
+2.Consumer-side contract test - a test suite for a service client (e.g. another service) that verifies that it can communicate with the service
+3.Service component test - a test suite that tests a service in isolation using test doubles for any services that it invokes
+
+Deployment:
+
+How to deploy an application’s services?
+
+Multiple service instances per host - deploy multiple service instances on a single host
+Service instance per host - deploy each service instance in its own host
+Service instance per VM - deploy each service instance in its VM
+Service instance per Container - deploy each service instance in its container
+Serverless deployment - deploy a service using serverless deployment platform
+Service deployment platform - deploy services using a highly automated deployment platform that provides a service abstraction
+
+Production:
+
+1.Log aggregation - aggregate application logs
+2.Application metrics - instrument a service’s code to gather statistics about operations
+3.Audit logging - record user activity in a database
+4.Distributed tracing - instrument services with code that assigns each external request an unique identifier that is passed between services. Record information (e.g. start time, end time) about the work (e.g. service requests) performed when handling the external request in a centralized service
+
+5.Exception tracking - report all exceptions to a centralized exception tracking service that aggregates and tracks exceptions and notifies developers.
+
+6.Health check API - service API (e.g. HTTP endpoint) that returns the health of the service and is intended to be pinged, for example, by a monitoring service
+
+7.Log deployments and change
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
