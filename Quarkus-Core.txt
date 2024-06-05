@@ -808,9 +808,211 @@ public class HandlingErrors {
         });
     }
 }
+.....................................................................................				Quarkus Setup
+.....................................................................................
+
+Setup : software dependency:
+
+JDK 17 | 21
+Oralcle JDK 17 or Open JDK 17
+Maven =>Optional dependency
+IDE : Intellij Idea Community edition.
+Docker and kubernets for windows
 
 
+Project setup patterns:
+ Quarkus apps can be setup many ways.
 
+1.Quarkus CLI -  Recommended
+2.Maven  -Not Recommended
+3.on line Templates -  https://code.quarkus.io/ - Recommended.
+
+
+1.Quarkus CLI
+
+ It is commandline tool used to create,manage quarkus projects
+ Quarkus CLI has been built on the top of JBang
+
+JBang:
+  Tool need to be installed first , through which we can install Quarkus cli
+
+https://quarkus.io/get-started/
+
+Windows :
+ Open power shell with admin access,run the below script
+
+iex "& { $(iwr https://ps.jbang.dev) } trust add https://repo1.maven.org/maven2/io/quarkus/quarkus-cli/"
+iex "& { $(iwr https://ps.jbang.dev) } app install --fresh --force quarkus@quarkusio"
+
+Note:
+ After installing restart the powershell.
+
+Step 2: Test Quarkus cli
+quarkus --help
+Usage: quarkus [-ehv] [--refresh] [--verbose] [--config=CONFIG]
+               [-D=<String=String>]... [COMMAND]
+Options:
+      --refresh         Refresh the local Quarkus extension registry cache
+      --config=CONFIG   Configuration file
+  -h, --help            Display this help message.
+  -v, --version         Print CLI version information and exit.
+  -e, --errors          Print more context on errors and exceptions.
+      --verbose         Verbose mode.
+  -D=<String=String>    Java properties
+
+Commands:
+  create                  Create a new project.
+    app                   Create a Quarkus application project.
+    cli                   Create a Quarkus command-line project.
+    extension             Create a Quarkus extension project
+  build                   Build the current project.
+  dev                     Run the current project in dev (live coding) mode.
+  run                     Run application.
+  test                    Run the current project in continuous testing mode.
+  config                  Manage Quarkus configuration
+    set
+    encrypt, enc          Encrypt Secrets using AES/GCM/NoPadding algorithm by
+                            default
+  extension, ext          Configure extensions of an existing project.
+    list, ls              List platforms and extensions.
+    categories, cat       List extension categories.
+    add                   Add extension(s) to this project.
+    remove, rm            Remove extension(s) from this project.
+  image                   Build or push project container image.
+    build                 Build a container image.
+      docker              Build a container image using Docker.
+      buildpack           Build a container image using Buildpack.
+      jib                 Build a container image using Jib.
+      openshift           Build a container image using OpenShift.
+    push                  Push a container image.
+  deploy                  Deploy application.
+    kubernetes            Perform the deploy action on Kubernetes.
+    openshift             Perform the deploy action on OpenShift.
+    knative               Perform the deploy action on Knative.
+    kind                  Perform the deploy action on Kind.
+    minikube              Perform the deploy action on minikube.
+  registry                Configure Quarkus registry client
+    list                  List enabled Quarkus registries
+    add                   Add a Quarkus extension registry
+    remove                Remove a Quarkus extension registry
+  info                    Display project information and verify versions
+                            health (platform and extensions).
+  update, up, upgrade     Suggest recommended project updates with the
+                            possibility to apply them.
+  version                 Display CLI version information.
+  plugin, plug            Configure plugins of the Quarkus CLI.
+    list, ls              List CLI plugins.
+    add                   Add plugin(s) to the Quarkus CLI.
+    remove                Remove plugin(s) to the Quarkus CLI.
+    sync                  Sync (discover / purge) CLI Plugins.
+  completion              bash/zsh completion:  source <(quarkus completion)
+
+
+Step 3: Create Project using quarkus cli tool
+
+G:\IBM\2024\June\Quarkus\core>quarkus create app  mycli-app
+Looking for the newly published extensions in registry.quarkus.io
+-----------
+
+applying codestarts...
+>> java
+>> maven
+>> quarkus
+>> config-properties
+>> tooling-dockerfiles
+>> tooling-maven-wrapper
+>> rest-codestart
+
+-----------
+[SUCCESS]  quarkus project has been successfully generated in:
+--> G:\IBM\2024\June\Quarkus\core\mycli-app
+-----------
+Navigate into this directory and get started: quarkus dev
+
+Lanuch the Project using IDE
+
+1.IntelliJ Idea
+2.vs code
+
+
+....................................................................................
+				Exploring Quarkus Project
+....................................................................................
+
+Quarkus project since maven project, maven project layout you can see.
+
+mycli-app
+  |
+  pom.xml
+  mvnw       - linux,mac -script files to run quarkus app
+  mvnw.cmd  -  windows - script files to run quarkus app
+
+ src
+  |
+  main
+    |
+    docker - having docker files to build docker image
+    java  - having source code
+    ressources - property files and some static assets
+  test
+
+
+Step 3:
+ How to run quarkus project
+
+1.using quarkus cli
+2.using quarkus mvn plugin
+3.using mvn
+ 
+We have two modes to run quarkus project
+
+1.Dev mode
+2.Production Mode
+
+
+Dev Mode:
+
+using cli:
+
+>quarkus dev
+
+using quarkus mvn plugin.
+
+ ./mvnw compile quarkus:dev 
+    if you run via powershell or bash shell
+
+ mvnw compile quarkus:dev
+   if you run via normal command prompt
+
+using mvn:
+ Make sure that you have install mvn installed
+
+ mvn compile quarkus:dev
+
+.................................................................................
+			 How to create project via code.quarkus.io
+...................................................................................
+https://code.quarkus.io/?a=myquarkusgradleapp&b=GRADLE&e=resteasy-reactive
+...................................................................................
+Running Project:
+
+quarkus dev
+./mvnw compile quarkus:dev -  bash shell
+or
+mvnw compile quarkus:dev - normal command
+or
+mvn compile quarkus:dev - via installed mvn command
+
+..................................................................................
+			  Hot reloading
+....................................................................................
+
+Painfull process in regular development is change code,save,compile,redeloy-
+Quarkus offers hot reloading feature
+  Just write code, and save
+    Quarkus takes care of compilation,building,redloyment automatically.
+.....................................................................................
+	
 
 
 
