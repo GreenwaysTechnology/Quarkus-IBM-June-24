@@ -519,7 +519,7 @@ The response would be
 200 status, Order saved
 
 .....................................................................................
-			   Responses
+			      Responses
 .....................................................................................
 
 What can be response?
@@ -531,6 +531,398 @@ REST API return any one of the following as type
 3.void - No Return type , only Status - No Content
 4.Response - Response Object
 5.Reactive Type - Uni or Multi - Non Blocking api is enabled...
+
+
+1.String - plain/text
+
+@Path("/hello")
+public class GreetingResource {
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return "Hello from Quarkus REST";
+    }
+}
+
+1.Return Objects and Collections
+
+ In order to return Object or Collection, we need converter to convert Object/Collection into json.
+
+quarkus ext add io.quarkus:quarkus-rest-jackson
+
+
+Object :
+package com.ibm.rest.response.collections;
+
+import com.ibm.rest.response.enity.Order;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("orders")
+public class OrderResource {
+
+    @GET
+    public Order getOrder() {
+        return new Order(1, "CREATED", 344.44, "This is fruits");
+    }
+    
+}
+
+
+Collections:
+.............
+package com.ibm.rest.response.collections;
+
+import com.ibm.rest.response.enity.Order;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+
+import java.util.List;
+
+@Path("orders")
+public class OrderResource {
+
+    @GET
+    public Order getOrder() {
+        return new Order(1, "CREATED", 344.44, "This is fruits");
+    }
+
+    @GET
+    @Path("list")
+    public List<Order> getOrders() {
+        return List.of(
+                new Order(1, "CREATED", 344.44, "This is fruits"),
+                new Order(2, "PENDING", 44.00, "This is fruits"),
+                new Order(3, "DISPATCHED", 33434.89, "This is fruits")
+                );
+    }
+
+
+}
+.....................................................................................
+			Response Object as Return type
+....................................................................................
+
+What is Advantage over Objects when we "Response" Object.
+
+You can send additional information along with response, like custom headers,tokens, some resource information.
+
+Response Object
+  Response Object used to send "Payload" along with meta data(http status code, other informations)
+
+HTTP Status Code:
+1.informational status  100 to 199- 1X
+2.success response -  200 - 299 - 2X
+3.Redirects - 300-399 - 3X
+4.Client Errors - 400-499 - 4X
+5.Server errors - 500 - 599 - 5X
+
+Response Class:
+Response is abstract class contains two factory api..
+
+public abstract Object getEntity()
+public abstract int getStatus()
+
+Builder class:
+
+public static ResponseBuilder status(int status)
+public static ResponseBuilder ok()
+
+
+
+package com.ibm.rest.response.enity;
+
+public class Customer {
+    private Integer customerId;
+    private String customerName;
+    private String city;
+
+    public Customer() {
+    }
+
+    public Customer(Integer customerId, String customerName, String city) {
+        this.customerId = customerId;
+        this.customerName = customerName;
+        this.city = city;
+    }
+
+    @Override
+    public String toString() {
+        return "Customer{" +
+                "customerId=" + customerId +
+                ", customerName='" + customerName + '\'' +
+                ", city='" + city + '\'' +
+                '}';
+    }
+
+    public Integer getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(Integer customerId) {
+        this.customerId = customerId;
+    }
+
+    public String getCustomerName() {
+        return customerName;
+    }
+
+    public void setCustomerName(String customerName) {
+        this.customerName = customerName;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+}
+
+
+package com.ibm.rest.response.collections;
+
+import com.ibm.rest.response.enity.Customer;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    @GET
+    public Response findAll() {
+        List<Customer> customers = List.of(
+                new Customer(1, "Subramaian", "Coimbatore"),
+                new Customer(2, "Murugan", "Coimbatore"),
+                new Customer(3, "Karthik", "Chennai")
+        );
+        return Response.ok().entity(customers).header("secret", "223klwewerwr").build();
+    }
+}
+..................................................................................					void
+...................................................................................
+
+If you want to return only status code , not content- like NoContent
+
+package com.ibm.rest.response.collections;
+
+import com.ibm.rest.response.enity.Customer;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    @DELETE
+    public void delete(){
+        System.out.println("Delete");
+    }
+}
+...................................................................................
+.....................................................................................	
+			 Reactive Response
+....................................................................................
+As we discussed already, Quarkus supports non blocking io arch.
+
+
+Quarkus is running on Vertx Engine
+
+Vertx engine uses non blocking infrastrastructure of the operating system.
+
+Vertx Provides threading model which are two types of threads.
+
+1.Non Blocking threads- Event Loop Threads.
+2.Blocking threads or Worker Pool threads
+
+Non Blocking threads or Event Loop Threads are used to multiplex the incoming requests.
+Vertx Engine provides per cpu core two threads, if i have 12 core, then i would have 24 threads to handle incoming requests.
+
+Worker pool threads are used to handle "Request Per  Thread model" - One request and one thread.
+
+           "By default all Rest api runs on "Worker Pool thread"."
+
+Testing Thread:
+
+package com.ibm.rest.response.threads;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("workerThread")
+public class WorkerThreadResource {
+
+    @GET
+    public String runOnWorker() {
+        String threadName = Thread.currentThread().getName();
+        //on which thread this method is running
+        return threadName;
+    }
+
+}
+
+Testing:
+http://localhost:8080/workerThread
+
+Output:
+executor-thread-1
+
+Here exector-thread-1 is "Blocking thread" meaning that our code is running request per thread model. 
+
+
+
+....................................................................................
+     How to run the request handling using Event loop thread(nonBlocking thread)
+...................................................................................
+
+if your endpoint method needs to accomplish an async or reactive task before being able to answer to the client, you can declare your method to return "Uni/Multi",
+in which case current http request to be turned as non blocking handled by "event loop thread", the current method will not return result immediately rather which suspends current http thread.
+
+
+package com.ibm.rest.response.threads;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("nonblockingThread")
+public class NonBlockingThreadResource {
+
+    @GET
+    public Uni<String> getName() {
+        System.out.println(Thread.currentThread().getName());
+        return Uni.createFrom().item("Subramnaian");
+    }
+}
+
+Testing:
+http://localhost:8080/nonblockingThread
+Response:
+vert.x-eventloop-thread-0
+...................................................................................
+....................................................................................
+		  How to return List or Object via Mutiny
+...................................................................................
+
+package com.ibm.rest.response.reactive;
+
+import com.ibm.rest.response.enity.Customer;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+import java.util.List;
+
+@Path("reactive")
+public class ReactiveResource {
+
+    @GET
+    public Uni<List<Customer>> getCustomers() {
+        List<Customer> customers = List.of(
+                new Customer(1, "Subramaian", "Coimbatore"),
+                new Customer(2, "Murugan", "Coimbatore"),
+                new Customer(3, "Karthik", "Chennai")
+        );
+        return Uni.createFrom().item(customers);
+    }
+}
+....................................................................................
+		Response Object with Reactive type
+...................................................................................
+package com.ibm.rest.response.reactive;
+
+import com.ibm.rest.response.enity.Customer;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("reactive")
+public class ReactiveResource {
+
+    @GET
+    @Path("response")
+    public Uni<Response> getCustomerResponse() {
+        List<Customer> customers = List.of(
+                new Customer(1, "Subramaian", "Coimbatore"),
+                new Customer(2, "Murugan", "Coimbatore"),
+                new Customer(3, "Karthik", "Chennai")
+        );
+        return Uni.createFrom()
+                .item(customers)
+                .onItem()
+                .transform(customers1 -> Response.ok(customers1).header("message", "customers"))
+                .onItem()
+                .transform(Response.ResponseBuilder::build);
+    }
+
+}
+..................................................................................
+			Streaming-Multi Response
+..................................................................................
+
+Sending sequence of values over period of time - Streaming.
+
+How to stream values?
+ Using multi Type.
+
+
+package com.ibm.rest.response.streaming;
+
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Random;
+
+@Path("stream")
+public class StreamingResource {
+
+    @GET
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    public Multi<Long> stream() {
+        return Multi.createFrom().ticks().every(Duration.ofSeconds(1));
+    }
+
+    @GET
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @Path("list")
+    public Multi<Integer> list() {
+        System.out.println(Thread.currentThread().getName());
+        //return Multi.createFrom().iterable(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10));
+        Random random = new Random();
+        return Multi.createFrom().iterable(List.of(1,2,3,4,5,6,7,8))
+                .onItem().call(i -> {
+                    Duration delay = Duration.ofMillis(10000);
+                    return Uni.createFrom().nullItem().onItem().delayIt().by(delay);
+                });
+    }
+}
+
+
+
+
+
+
+
+
+
 
 
 
