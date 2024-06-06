@@ -914,17 +914,208 @@ public class StreamingResource {
                 });
     }
 }
+.....................................................................................
+			Blocking and Non Blocking Threading Models
+
+Quarkus(Vertx) provides two types of threads
+
+1.Event loop thread
+   Thread which is used to build non blocking apps
+   Vertx(Quarkus) provides limited no threads to handle large concurrency
+   Quarkus enables event loop thread is activated to handle incoming request by 
+   Mutiny type called "Uni or Multi"
+
+2.Worker loop thread
+    It is Request Per thread model threads, when ever new request comes, quarkus allocats new a spearate thread for that request , that thread cant be reused by other request.
+
+.
+.................................................................................
+		The Golden Rule - Don’t Block the Event Loop thread
+.................................................................................
+
+Caution:
+  You should not write any code  which blocks event loop thread.
+
+if you block event loop thread, vertx engine throws warning and error(Thread Blocked Exception).
+
+if the code is executed by "Event loop thread", inside that code we should not write any code which blocks that thread....
+
+What are the code which blocks event loop thread.
+
+1.Thread.sleep()
+2.Waiting on a lock
+3.Waiting on a mutex or monitor (e.g. synchronized section)
+4.Doing a long lived database operation and waiting for a result
+5.Doing a complex calculation that takes some significant time.
+6.Spinning in a loop
 
 
+I am going to simulate using Thread.sleep how to block event loop thread, then what will happen if you block.
 
 
+Steps:
+1.quarkus create app threading-app
 
 
+package com.ibm.rest.api.threading;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("blocking")
+public class BlockingEventLoopThread {
 
 
+    @GET
+    public Uni<String> blockMe() throws InterruptedException {
+        System.out.println(Thread.currentThread().getName());
+        //Thread.sleep(1000);
+        Thread.sleep(5000);
+        return Uni.createFrom().item("Hello");
+    }
+}
+
+Testing:
+http://localhost:8080/blocking
+
+After increasing time we got exception
+
+2024-03-14 15:30:51,826 WARN  [io.ver.cor.imp.BlockedThreadChecker] (vertx-blocked-thread-checker) Thread Thread[vert.x-eventloop-thread-1,5,main] has been blocked for 2572 ms, time limit is 2000 ms: io.vertx.core.VertxException: Thread blocked.
 
 
+Here we can that got exception, the reason because the thread has been blocked for  more time.
 
+Generally event loop thread can be blocked only for 2000ms which is default time out 
+
+beyond that if try to block, Vertx will throw Exception, called "Thread Blocked"
+Exception.
+
+.....................................................................................
+
+What if i want to write blocking operations inside the nonblocking code which returns Reactive?
+
+    @GET
+    public Uni<String> blockMe() throws InterruptedException {
+        System.out.println(Thread.currentThread().getName());
+          //external api call which also may block this event loop thread.
+         Thread.sleep(5000)
+        return Uni.createFrom().item("Hello");
+    }
+
+Solution:
+ There is annotation called @Blocking
+
+    @GET
+    @Blocking
+    public Uni<String> blockMe() throws InterruptedException {
+        System.out.println(Thread.currentThread().getName());
+        //Thread.sleep(1000);
+        Thread.sleep(5000);
+        return Uni.createFrom().item("Hello");
+    }
+
+ Even though you return Reactive type, now this code will run in worker pool thread only.
+....................................................................................
+What if i want to run my code in delayed manner in async way in non blocking thread
+i cant use Thread.sleep
+
+>Thread.sleep => which is blocking scheduler
+>onItem.delayIt() =>  Which is reactive scheduler
+
+package com.ibm.rest.api.threading;
+
+import io.smallrye.common.annotation.Blocking;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.Response;
+
+import java.time.Duration;
+
+@Path("blocking")
+public class BlockingEventLoopThread {
+
+
+    @GET
+    @Blocking
+    public Uni<String> blockMe() throws InterruptedException {
+        System.out.println(Thread.currentThread().getName());
+        //Thread.sleep(1000);
+        Thread.sleep(5000);
+        return Uni.createFrom().item("Hello");
+    }
+    @GET
+    @Path("reactivescheduler")
+    public Uni<Response> getResponseWithDelay() throws InterruptedException {
+        System.out.println(Thread.currentThread().getName());
+        return Uni.createFrom().item("Hello")
+                .onItem()
+                .transform(f -> Response.ok(f).header("message", "How are you"))
+                .onItem()
+                .delayIt().by(Duration.ofMillis(6000))
+                .onItem()
+                .transform(Response.ResponseBuilder::build);
+    }
+}
+.....................................................................................
+			How to handle Exception in Rest api
+
+.....................................................................................
+
+If any application exception happens we need to handle and convert into meaningfull Response.
+
+In order to handle exception in Quarkus, jakarta provides base class jakarta.ws.rs.WebApplicationException
+
+Step:
+
+1.Write Exception mapper class,Which convert any exception into Http Success Response.
+
+package com.ibm.rest.api.exception;
+
+
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
+
+@Provider
+public class WebAppExceptionMapper implements ExceptionMapper<WebApplicationException> {
+    @Override
+    public Response toResponse(WebApplicationException e) {
+        return Response.ok().entity(e.getMessage()).build();
+    }
+}
+
+2.Resource class where we can test exception.
+package com.ibm.rest.api.exception;
+
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.WebApplicationException;
+
+@Path("exception")
+public class ExceptionResource {
+
+    @Path("{name}")
+    @GET
+    public String getName(@PathParam("name") String name) {
+        if (name.equals("admin")) {
+            return "Hello " + name;
+        }
+        throw new WebApplicationException("Name is not Matching");
+    }
+}
+
+Testing:
+http://localhost:8080/exception/admin
+Response:
+Hello admin
+
+http://localhost:8080/exception/foo
+Response:
+Name is not Matching
 
 
 

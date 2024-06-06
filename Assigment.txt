@@ -1,0 +1,22 @@
+
+Assigment -1:
+
+You have to build api - Use Reactive apis
+Course Api
+ 
+courseId:1
+courseName:'Quarkus'
+duration:40 hrs
+startingDate: date
+endingDate: date
+category: 'java','js','ui','ai',
+instructor: 'Subramanian'
+
+Must have mock data -  can be stored into list or map.
+
+1.return all courses
+2.return course by id
+3.filter courses by category
+4.update course information by id
+5.remove course by id
+....................................
