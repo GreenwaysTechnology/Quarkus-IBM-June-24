@@ -1,0 +1,618 @@
+		      Jakarta Contexts and Dependency Injection 
+...................................................................................
+			  Dependency Injection - IOC
+.....................................................................................
+What is IOC?
+ Inversion of Control is design pattern for creating depandent objects and injecting into another.
+
+
+How IOC is implemented in Spring?
+ Spring Container is the reference implemnetation of IOC design pattern
+
+How IOC is implemented in Quarkus?
+  Quarkus uses JEE spec called CDI - context Dependency Injection
+
+What is CDI?
+  CDI is JEE Spec? -Jakarta Contexts and Dependency Injection
+
+Quarkus and CDI ?
+ Quarkus has not implemented 100% CDI spec due to some reasons.
+
+"Quarkus ArC" is a build-time oriented dependency injection based on CDI 2.0.
+
+Spring and JEE dependencies are resolved "during runtime" only
+
+Quarkus depedencies are resolved "During build time".
+
+Spring:
+
+interface A{ }
+
+class A1 implements A{}
+
+class B1 implements A{}
+
+class C {
+  A a;  =  new A1 or B1
+}
+
+Which implementation is picked up and when the implementation is decided. - during runtime -
+
+  Depedencies are resolved during runtime -spring
+  Depedencies are resolved build runtime -Quarkus
+
+
+
+			Quarkus Application
+				|
+	         Quarkus Arc -layer built on the top of CDI
+				  |
+		  Jakarta Contexts and Dependency Injection
+
+
+
+JEE CDI Vs Quarkus CDI:
+......................
+
+JEE CDI "resolves" bean dependency during runtime of an application,after deployment, if something goes wrong, errors are reported only during runtime.
+
+Quarkus CDI uses a model called "Build Time"
+   During application build process, if there is any dependency missmatch related errors are reported.
+
+Build-time Processing Benefits and Drawbacks:
+..............................................
+
+Fail Fast
+  Beans and dependencies are validated during the build so that your application can never fail in production with common problems such as AmbiguousResolutionException or UnsatisfiedResolutionException.
+
+Instant Startup
+  When the app starts ArC just loads all the metadata and initializes some internal structures. There is no need to analyze the application classes again. This means negligible startup overhead.
+ 
+Minimized Runtime
+  In Quarkus 0.19, ArC plus integration runtime consist of 72 classes and occupies ~ 140 KB in jars. Weld 3.1.1 (CDI Reference Implementation) core is roughly 1200 classes and approx. 2 MB jar. In other words, ArC runtime takes approx. 7% of the Weld runtime in terms of number of classes and jar footprint.
+
+Optimized Code Paths and Metadata Structures
+
+  When generating the metadata classes ArC can sometimes produce leaner and smarter logic because it has the whole application analyzed already. 
+
+Core Features of CDI:
+
+1.Bean: What is Bean?
+
+Bean is java object
+
+Types of Beans:
+
+1.Application Beans(pojos)
+   Objects are created by developer 
+   Objects life cycle is managed by developer and JVM
+
+2.Container managed Bean
+   Objects created by the Container
+
+
+What is container?
+   Container is runtime where quarkus apps are running.
+   Object life cycle are managed by Runtime 
+
+What are the advantages of Container Managed Bean?
+
+
+>The developer can focus application logic.
+....................................................................................
+
+			 CDI implemenation
+...................................................................................
+
+CDI is implemented via "Annotations"
+
+
+Apis in cdi:
+
+1.jakarta.inject
+2.jakarta.enterprise.inject - core di apis
+3.jakarta.enterprise.context - scope and contextuaal apis
+4.jakarta.enterprise.events -  publishing events and listening events-  container wide event driven programming
+5.jakarta.enterprise.util
+6.jakarta.interceptor
+
+Common Annoations:
+
+1.@Inject  
+2.@Qualifer
+3.LifeCycle of Bean
+   @ApplicationScoped =@component,@Bean,@Service......
+   @SessionScoped
+   @RequestScoped
+   @SingleTon
+
+ApplicationScoped vs SingleTon
+ Both are same - single instance across the application
+ but SingleTon beans not available inside testing env..
+ 
+4.@Observes - event listner - StartupEvent
+
+
+...................................................................................
+				Quarkus Application Archiecture
+...................................................................................
+
+There are two layers
+
+1.controllers
+   Using Rest api
+2.services
+   Using plain java class called services...
+
+
+Steps:
+1.create quarkus app for CDI
+
+quarkus create app cdi-app
+
+
+2.Without Dependency Injection , how to write service class .
+
+package com.ibm.cdi.services;
+
+public class GreetingService {
+
+    public String hello() {
+        return "Hello from Quarkus REST";
+
+    }
+}
+package org.acme;
+
+import com.ibm.cdi.services.GreetingService;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+    //dependency injection
+    GreetingService greetingService = new GreetingService();
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.hello();
+    }
+}
+The class "GreetingService" is called Bean class- Application Bean- we have to create instance of this class.
+
+Quarkus recommends to apply "IOC" principle: Dont create object by yourself. ask the container to create and manage- just use created object : Container Managed Bean
+
+
+Service class need to be annotated using the following any one of the annoations
+
+@ApplicationScoped
+@SingleTon
+@SessionScoped
+@RequestScoped
+
+These annotations marks the class , so that the container creates object automatically and make it available ready for use.
+
+
+package com.ibm.cdi.services;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class GreetingService {
+
+    public String hello() {
+        return "Hello from Quarkus REST";
+
+    }
+}
+package org.acme;
+
+import com.ibm.cdi.services.GreetingService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+    //dependency injection
+    // GreetingService greetingService = new GreetingService();
+    @Inject
+    private GreetingService greetingService;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.hello();
+    }
+}
+.....................................................................................
+.....................................................................................	     		Types of Injection in Quarkus  -Injection Points
+
+1.Field Injection
+2.Setter Injection
+3.Constructor injection
+
+Quarkus supports all types of injection but recommened only "Field Injection"
+
+1.Field Injection
+ Injecting references at top of the variable declaration
+
+import com.ibm.cdi.services.GreetingService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+    @Inject
+    private GreetingService greetingService;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.hello();
+    }
+}
+
+2.Setter Injection
+package org.acme;
+
+import com.ibm.cdi.services.GreetingService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+   
+    private GreetingService greetingService;
+
+    @Inject
+    public void setGreetingService(GreetingService greetingService) {
+        this.greetingService = greetingService;
+    }
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.hello();
+    }
+}
+
+3.Consutructor Injection.
+package org.acme;
+
+import com.ibm.cdi.services.GreetingService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+    private GreetingService greetingService;
+
+    @Inject
+    public GreetingResource(GreetingService greetingService) {
+        this.greetingService = greetingService;
+    }
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.hello();
+    }
+}
+
+Note:
+ private keyword is not necessary.
+package org.acme;
+
+import com.ibm.cdi.services.GreetingService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+    GreetingService greetingService;
+
+    @Inject
+    public GreetingResource(GreetingService greetingService) {
+        this.greetingService = greetingService;
+    }
+
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.hello();
+    }
+}
+.....................................................................................
+			Injecting Multiple dependencies
+......................................................................................package org.acme;
+
+import com.ibm.cdi.services.GoodByeService;
+import com.ibm.cdi.services.GreetingService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+    @Inject
+    GreetingService greetingService;
+
+    @Inject
+    GoodByeService goodByeService;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.hello() + "  " + goodByeService.sayGoodBye();
+    }
+}
+.....................................................................................
+		Interface Based Dependency Injection
+....................................................................................
+1.Single interface and Single Implmentation.
+package com.ibm.cdi.services.interfaces;
+
+public interface NumberGenerator {
+    String generateISBNGenerator();
+}
+
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.Random;
+
+@ApplicationScoped
+public class ISBNGeneratorImpl implements NumberGenerator {
+    @Override
+    public String generateISBNGenerator() {
+        return "15232323-45455" + Math.abs(new Random().nextInt());
+    }
+}
+
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("books")
+public class BookResource {
+
+    @Inject
+    NumberGenerator numberGenerator;
+
+    @GET
+    public String getBookISBN(){
+        return  numberGenerator.generateISBNGenerator();
+    }
+}
+.....................................................................................
+			Single Interface multiple bean class implmentation
+....................................................................................
+
+package com.ibm.cdi.services.interfaces;
+
+public interface Repository {
+    public String findAll();
+}
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class SQLReposiotryImpl implements Repository{
+    @Override
+    public String findAll() {
+        return "SQL Findall";
+    }
+}
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class NoSQLRepositoryImpl implements Repository {
+    @Override
+    public String findAll() {
+        return "NoSQL ReposiotryImpl";
+    }
+}
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("repo")
+public class RepositoryResource {
+
+    @Inject
+    Repository repository;
+
+    @GET
+    public String findAll() {
+        return repository.findAll();
+    }
+}
+
+After running:
+rror Occurred After Shutdown]: java.lang.RuntimeException: io.quarkus.builder.BuildException: Build failure: Build failed due to errors
+        [error]: Build step io.quarkus.arc.deployment.ArcProcessor#validate threw an exception: jakarta.enterprise.inject.spi.DeploymentException: jakarta.enterprise.inject.AmbiguousResolutionException: Ambiguous dependencies for type com.ibm.cdi.services.interfaces.Repository and qualifiers [@Default]
+        - injection target: com.ibm.cdi.services.interfaces.RepositoryResource#repository
+        - declared on CLASS bean [types=[com.ibm.cdi.services.interfaces.RepositoryResource, java.lang.Object], qualifier
+
+so Quarkus not able to decide which implementation should be injected.
+
+Solution:
+1.Using Qualifers
+2.@Named Annotation
+
+Qualifers are very complex to implement so we use Named Anntation
+
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Named;
+
+@ApplicationScoped
+@Named("sql")
+public class SQLReposiotryImpl implements Repository{
+    @Override
+    public String findAll() {
+        return "SQL Findall";
+    }
+}
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Named;
+
+@ApplicationScoped
+@Named("nosql")
+public class NoSQLRepositoryImpl implements Repository {
+    @Override
+    public String findAll() {
+        return "NoSQL RepositoryImpl";
+    }
+}
+package com.ibm.cdi.services.interfaces;
+
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+@Path("repo")
+public class RepositoryResource {
+
+    @Inject
+    @Named("nosql")
+    Repository repository;
+
+    @GET
+    public String findAll() {
+        return repository.findAll();
+    }
+}
+....................................................................................
+			Life cycle apis
+...................................................................................
+
+Life cycle apis are getting called automatically...
+
+package com.ibm.cdi.services.lifecycles;
+
+import io.quarkus.runtime.Shutdown;
+import io.quarkus.runtime.Startup;
+import io.quarkus.runtime.StartupEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+
+import java.util.List;
+
+@ApplicationScoped
+public class UserService {
+
+    List list;
+
+    @Startup
+    public void init() {
+        list = List.of("Subramanian", "adming", "guest");
+    }
+
+    public void startUp(@Observes StartupEvent startupEvent) {
+        System.out.println("Startup event");
+    }
+
+
+    public List<String> getUsers() {
+        return list;
+    }
+
+    @Shutdown
+    public void destory() {
+        System.out.println("Clean up");
+    }
+}
+
+package com.ibm.cdi.services.lifecycles;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+import java.util.List;
+
+@Path("users")
+public class UserResource {
+
+    @Inject
+    UserService userService;
+    @GET
+    public List<String> getUsers(){
+        return  userService.getUsers();
+    }
+}
+..................................................................................
+			 Reactive Types and Services
+..................................................................................
+
+package com.ibm.cdi.services.reactive;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.List;
+
+@ApplicationScoped
+public class ProductService {
+
+    public Uni<List<String>> getProducts() {
+        return Uni.createFrom().item(List.of("Product1", "Product2"));
+    }
+}
+
+package com.ibm.cdi.services.reactive;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+import java.util.List;
+
+@Path("products")
+public class ProductResource {
+    @Inject
+    ProductService productService;
+
+    @GET
+    public Uni<List<String>> findAll() {
+        return productService.getProducts();
+    }
+}
+
+
+
+
