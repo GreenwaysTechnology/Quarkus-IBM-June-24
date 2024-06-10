@@ -1,0 +1,1058 @@
+				Quarkus Datasources
+			  Microservice Data Management Pattern
+.....................................................................................
+In Microservices,Managing data is most crictical.
+
+Patterns:
+
+1.Database per Service - each service has its own private database
+
+2.Shared database - services share a database
+
+3.Saga - use sagas, which a sequences of local transactions, to maintain data consistency across services
+
+4.Command-side replica - maintain a queryable replica of data in a service that implements a command
+
+5.API Composition - implement queries by invoking the services that own the data and performing an in-memory join
+
+6.CQRS - implement queries by maintaining one or more materialized views that can be efficiently queried
+
+7.Domain event - publish an event whenever data changes
+
+8.Event sourcing - persist aggregates as a sequence of events
+
+Transactional messaging
+........................
+How to publish messages as part of a database transaction?
+
+1.Transactional outbox
+2.Transaction log tailing
+3.Polling publisher
+		
+....................................................................................
+				Core Patterns In data
+
+
+1.Shared database - services share a database
+
+2.Database per Service - each service has its own private database
+
+1.Shared Database Pattern
+
+  Microservice apps are independant but database is not independant, that means which has been shared among many services.
+
+Transaction:
+
+ Single unit of execution
+
+In short, a database transaction is a sequence of multiple operations performed on a database, and all served as a single logical unit of work — taking place wholly or not at all.
+
+  Every database apps requires "ACID" transaction
+
+  ACID is an acronym that refers to the set of 4 key properties that define a transaction: Atomicity, Consistency, Isolation, and Durability. If a database operation has these ACID properties, it can be called an ACID transaction, and data storage systems that apply these operations are called transactional systems.
+
+  
+Transactions
+  Running multiple database quries step by step, grouping many database quries into one unit.
+ In order to achive one single biz work flow, we need to update many tables at time
+ if any one table update or delete or insert fails, we should not update/insert/delete other tables
+ 
+ begin
+    update order
+    insert inventory
+    delete sales
+ end 
+
+When we build microservices, we deal with database, database operations need to be enabled transaction.
+
+Advantages of shared database:
+..............................
+
+1.Transaction is very easy and simple to implement
+2.A single database is simpler to operate
+
+Drawbacks:
+1.Development time coupling - a developer working on, for example, the OrderService will need to coordinate schema changes with the developers of other services that access the same tables. This coupling and additional coordination will slow down development.
+
+2.Runtime coupling - because all services access the same database they can potentially interfere with one another. For example, if long running CustomerService transaction holds a lock on the ORDER table then the OrderService will be blocked.
+
+3.Single database might not satisfy the data storage and access requirements of all services.
+
+4.As per microservices, apps are loosly coupled, at the same time database also need to be loosly coupled
+....................................................................................
+			  Data base Per service Pattern
+.....................................................................................
+2.Database Per Service Pattern
+...............................
+  Each Service is going to have its own database and tables
+
+
+Advantage:
+1. loose coupling
+2  You can have any database your own choice
+
+Drawbacks
+1.If services need to co-ordinate each other in order to enable biz work flow-
+  Transactions now are very hard and selecting data from the multiple tables are also   hard
+
+Challanges:
+1.Transactions - insert , update,delete
+2.Quries - select,joins,subquries
+
+if i enable Database Perservice pattern, how to handle transactions and quries?
+ It lead another design patterns
+
+  0.Event Sourcing Pattern | DomainEvents
+   |
+    1.SAGA - Transactions -  update,insert,delete 
+       SAGA also has some drawabacks
+	  -1.Transactional outbox
+	  -2.Transactional log tailing
+	  -3.Polling publisher
+   2.CQRS/API Composition - Querying data - select,joins
+.....................................................................................
+....................................................................................
+			Quarkus and Database Per Service Pattern
+....................................................................................
+Quarkus enables Database per Service pattern by default....
+
+
+DataSource Implementation in Quarkus:
+.....................................
+
+Quarkus relies on JEE standards.
+
+Quarkus implements JPA as low level specfication for database operations.
+
+Quarkus uses JPA With hibernate as low level implementation for Database operations.
+
+Quarkus has created a mini framwork which even sits on the top of hiberate Which is called "Panche"
+
+Panche:
+ - It is highlevel abstraction for hibernate.
+
+		       Panache
+			  |
+		      Hibernate
+			 |
+		   JPA  Specification.
+
+Note:
+  Without panche also we can write database operations using "plain" Hibernate.
+.....................................................................................
+
+Quarkus Database Programming implementation
+
+1.JPA with Hibernate only  -  legacy
+2.JPA With Hibernate with Panche - Modern.
+
+I am going to write code using Panche...
+
+There is two style of writing code
+
+1.Non Reactive - Blocking
+2.Reactive - NonBlocking
+
+
+We are going to use Panche Framework to connect data sources.
+
+There are two design patterns
+1.Active Record Pattern
+2.Repository Pattern /DAO Pattern
+
+
+			   Database Programming
+				 |
+	        ----------------------------------------
+		|                                      |
+	  Hiberate only                               Panche
+						       |
+					    ----------------------------		
+					   Reactive                    Non reactive
+						|                        |
+					     ..............................	
+							 |
+					 Active Record          DAO/Repository
+
+
+We will dicuss "Panche with Reactive With Active Record and DAO"
+We will dicuss "Panche with Non Reactive With Active Record and DAO"
+
+Database configuration:
+
+application.properties
+
+quarkus.datasource."ServiceName".dbProperties=value
+
+eg:
+
+without service names
+quarkus.datasource.db-kind=h2
+quarkus.datasource.username=username-default
+quarkus.datasource.jdbc.url=jdbc:h2:mem:default
+quarkus.datasource.jdbc.max-size=13
+
+With Service Names
+
+quarkus.datasource.users.db-kind=h2
+quarkus.datasource.users.username=username1
+quarkus.datasource.users.jdbc.url=jdbc:h2:mem:users
+quarkus.datasource.users.jdbc.max-size=11
+
+quarkus.datasource.inventory.db-kind=h2
+quarkus.datasource.inventory.username=username2
+quarkus.datasource.inventory.jdbc.url=jdbc:h2:mem:inventory
+quarkus.datasource.inventory.jdbc.max-size=12
+
+quarkus.datasource.customers.db-kind=postgresql 
+quarkus.datasource.customers.username=<your username>
+quarkus.datasource.customers.password=<your password>
+quarkus.datasource.customers.jdbc.url=jdbc:postgresql://localhost:5432/hibernate_orm_test
+quarkus.datasource.customers.jdbc.max-size=16
+....................................................................................
+DbKind: Type of database
+common db-kind value conventions
+1.DB2: db2
+2.Derby: derby
+3.H2: h2
+3.MariaDB: mariadb
+4.Microsoft SQL Server: mssql
+5.MySQL: mysql
+6.Oracle: oracle
+7.PostgreSQL: postgresql, pgsql or pg
+
+
+Data Source Implementation:
+...........
+Agroal data source is default datasource...
+  It is modern,lightweight connection pool implementation designed for high performance.
+  It is similar to Apache DBCP libs.
+
+Data sources are powered with reactive programming
+   Datasources are powered with non blocking arch....
+
+Transactions:
+   Quarkus data module offeres transaction implementations.
+   Quarkus implments Narayana as transaction manager
+
+What is Narayana?
+	Narayana is a transactions toolkit which provides support for applications 
+developed using a broad range of standards-based transaction protocols:
+JTA
+JTS
+Web-Service Transactions
+REST Transactions
+STM
+
+....................................................................................
+			 Getting started With coding.
+....................................................................................
+
+Steps:
+
+1.You need database 
+   db2
+   Derby(in-process)
+   H2(in-process)
+   Mariadb
+   mysql
+   postgresql
+   oracle
+You can start database via docker
+
+Quarkus apps  has mode
+
+1.dev mode
+  start db server  
+     standalone
+     via docker
+2.prod mode
+   via containers
+   via vms
+
+Quarkus offers features- dev services- for databases
+
+If your quarkus apps runs in dev/test mode, quarkus provides you with a zero config database outof the box,
+ a feature we refer to as "Dev Services"
+
+If you enable dev service for any database, quarkus runs database as part of app within embeded docker container.
+ db2,mariadb,mssql,mysql,oracle,postgresql-dev services enabled database
+
+application.properties
+quarkus.devservices.enabled=true/false
+%dev.quarkus.datasource.devservices.enabled=true/false
+
+Database connection information:
+..................................
+
+Default user name and password for dev services.
+
+postgre,mariadb,mysql,db2,h2 - quarkus,quarkus (userName,password)
+
+JPA as Spec :
+ Uses all jpa annotations @Entity,@Table,@Id,@Column....
+...................................................................................
+
+Database : 
+ ->Postgresql.
+
+Use case:
+ We will discuss NonReactive (Blocking) pattern for connecting databases.
+
+G:\IBM\2024\June\Quarkus\microservices\datasources>quarkus create app nonreactive-datasource
+
+Dependency:
+quarkus ext add io.quarkus:quarkus-rest-jackson
+quarkus ext add io.quarkus:quarkus-hibernate-orm-panache
+quarkus ext add io.quarkus:quarkus-jdbc-postgresql
+
+
+application.properties
+#Dev Services : Todo: this configuration will not be applicable for production
+quarkus.datasource.devservices.enabled=false
+
+#Datasource configuration
+quarkus.datasource.db-kind=postgresql
+quarkus.datasource.username=quarkus
+quarkus.datasource.password=quarkus
+#quarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5432/db
+#quarkus.datasource.reactive.url=vertx-reactive:postgresql://localhost:5432/db
+#Hibernate configuration
+quarkus.hibernate-orm.database.generation=drop-and-create
+quarkus.hibernate-orm.log.sql=true
+quarkus.hibernate-orm.sql-load-script=import.sql
+
+.....................................................................................
+			Panche-Hibernate - Non Reactive with Active Pattern
+.....................................................................................
+
+Dependency:
+
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest-jackson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm-panache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+
+2.Enable database settings.
+ via dev services(embeded) incase of in dev- only for development, in production this setting must be disabled
+ via separate containers
+
+Make Sure that docker is running.
+
+application.properties
+quarkus.datasource.devservices.enabled=true
+
+
+>docker ps
+CONTAINER ID   IMAGE                       COMMAND                  CREATED         STATUS         PORTS                     NAMES
+6b14379c347b   postgres:14                 "docker-entrypoint.s…"   2 minutes ago   Up 2 minutes   0.0.0.0:51923->5432/tcp   wizardly_pasteur
+bd7580081351   testcontainers/ryuk:0.7.0   "/bin/ryuk"              2 minutes ago   Up 2 minutes   0.0.0.0:51921->8080/tcp   testcontainers-ryuk-f7d475fe-4f08-46c2-b2f8-f589619defd5
+
+
+4.Hibernate coding
+There are two Design patterns are proposed to write database coding.
+
+
+1.Active Record Pattern
+2.Repository Design Pattern /DAO Design pattern
+
+
+Style of Code
+
+1.Using Hibernate with JPA alone - Which is not recommened
+2.Using Panache Hibernate with JPA - Which is recommended
+
+Panache is a framework which is built on Hibernate to simplify and enable design patterns easily: Recommended to use Panache.
+
+Active Record Pattern with Panache
+..................................
+Steps:
+1.Declare Entity
+
+package com.ibm.activerecord.entity;
+
+import jakarta.persistence.Entity;
+
+@Entity
+public class Customer {
+}
+
+2.Write Entity with Panche- Active Record
+2.Write Entity with Panche- Active Record
+
+package com.ibm.activerecord.entity;
+
+import io.quarkus.hibernate.orm.panache.PanacheEntity;
+
+import jakarta.persistence.Entity;
+
+@Entity
+public class Customer extends PanacheEntity {
+}
+
+
+PanacheEntity is super class which offers all "CURD and database apis"
+
+Entity variables which represents columns.
+All Variables must be declared "public"
+id variables dont need be declared.
+
+package com.ibm.activerecord.entity;
+
+import io.quarkus.hibernate.orm.panache.PanacheEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+
+@Entity
+public class Customer extends PanacheEntity {
+    //Column Names
+    @Column(name = "name")
+    public String name;
+    @Column(name="city")
+    public String city;
+}
+
+3.1.Write Resources to Get All Data
+3.1.Write Resources to Get All Data
+
+package com.ibm.activerecord.resource;
+
+import com.ibm.activerecord.entity.Customer;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    //CURD operations
+    @GET
+    public List<Customer> findAll() {
+        return Customer.listAll();
+    }
+}
+3.2.Get Data by id
+package com.ibm.activerecord.resource;
+
+import com.ibm.activerecord.entity.Customer;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.WebApplicationException;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    //CURD operations
+    @GET
+    public List<Customer> findAll() {
+        return Customer.listAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public Customer findById(@PathParam("id") Integer id) {
+        Customer customer = Customer.findById(id);
+        if (customer == null) {
+            throw new WebApplicationException("Customer with Id of " + id + "does not exits");
+        }
+        return customer;
+    }
+}
+
+In order handle error, we need to write Error Mapper class.
+
+package com.ibm.activerecord.resource;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
+
+@Provider
+public class ErrorMapper implements ExceptionMapper<Exception> {
+
+    @Inject
+    ObjectMapper objectMapper;
+
+    @Override
+    public Response toResponse(Exception exception) {
+        int code = 500;
+        if (exception instanceof WebApplicationException) {
+            code = ((WebApplicationException) exception).getResponse().getStatus();
+        }
+        ObjectNode exceptionJson = objectMapper.createObjectNode();
+        exceptionJson.put("exceptionType", exception.getClass().getName());
+        exceptionJson.put("code", code);
+        if (exception.getMessage() != null) {
+            exceptionJson.put("error", exception.getMessage());
+        }
+        return Response.status(code).entity(exceptionJson).build();
+    }
+}
+
+Testing:
+GET localhost:8080/customers/1
+{
+    "id": 1,
+    "name": "Subramanian",
+    "city": "Coimbatore"
+}
+GET localhost:8080/customers/10
+
+{
+    "exceptionType": "jakarta.ws.rs.WebApplicationException",
+    "code": 500,
+    "error": "Customer with Id of 10does not exits"
+}
+.....................
+
+3.3.Post Data to Rest api
+
+package com.ibm.activerecord.resource;
+
+import com.ibm.activerecord.entity.Customer;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+     //Post
+    @POST
+    public Response create(Customer customer) {
+        if (customer.id != null) {
+            throw new WebApplicationException("Id was invalidly set on Request", 422);
+        }
+        customer.persist();
+        return Response.ok(customer).status(201).build();
+    }
+}
+
+Testing:
+POST localhost:8080/customers
+
+Payload
+{
+    "name": "John",
+    "city": "Mumbai"
+}
+
+OutPut:
+{
+    "exceptionType": "jakarta.persistence.TransactionRequiredException",
+    "code": 500,
+    "error": "Transaction is not active, consider adding @Transactional to your     method to automatically activate one."
+}
+
+In order to perform create,update,delete operations, transactions must be enabled.
+
+By using @Transactional annotation
+
+package com.ibm.activerecord.resource;
+
+import com.ibm.activerecord.entity.Customer;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    //CURD operations
+    @GET
+    public List<Customer> findAll() {
+        return Customer.listAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public Customer findById(@PathParam("id") Integer id) {
+        Customer customer = Customer.findById(id);
+        if (customer == null) {
+            throw new WebApplicationException("Customer with Id of " + id + "does not exits");
+        }
+        return customer;
+    }
+
+    //Post
+    @POST
+    @Transactional
+    public Response create(Customer customer) {
+        if (customer.id != null) {
+            throw new WebApplicationException("Id was invalidly set on Request", 422);
+        }
+        customer.persist();
+        return Response.ok(customer).status(201).build();
+    }
+}
+
+
+Testing:
+POST localhost:8080/customers
+
+Payload
+{
+    "name": "John",
+    "city": "Mumbai"
+}
+
+Response:
+status code 201
+{
+    "id": 4,
+    "name": "John",
+    "city": "Mumbai"
+}
+
+3.4 How to Update
+
+package com.ibm.activerecord.resource;
+
+import com.ibm.activerecord.entity.Customer;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    //CURD operations
+    @GET
+    public List<Customer> findAll() {
+        return Customer.listAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public Customer findById(@PathParam("id") Integer id) {
+        Customer customer = Customer.findById(id);
+        if (customer == null) {
+            throw new WebApplicationException("Customer with Id of " + id + "does not exits");
+        }
+        return customer;
+    }
+
+    //Post
+    @POST
+    @Transactional
+    public Response create(Customer customer) {
+        if (customer.id != null) {
+            throw new WebApplicationException("Id was invalidly set on Request", 422);
+        }
+        customer.persist();
+        return Response.ok(customer).status(201).build();
+    }
+    //Update
+
+    @PUT
+    @Path("{id}")
+    @Transactional
+    public Customer update(@PathParam("id") Long id, Customer customer) {
+        if (customer.name == null) {
+            throw new WebApplicationException("Customer Name was not set on request " + 422);
+        }
+        Customer customerEntity = Customer.findById(id);
+        if (customerEntity == null) {
+            throw new WebApplicationException("Customer with ID Of " + id + "does not  exits", 404);
+        }
+        //update logic
+        customerEntity.name = customer.name;
+        customerEntity.city = customer.city;
+        return customerEntity;
+    }
+}
+
+Testing:
+PUT localhost:8080/customers/5
+
+Payload:
+{
+    "name": "James",
+    "city": "Delhi"
+}
+Response:
+{
+    "id": 5,
+    "name": "James",
+    "city": "Delhi"
+}
+
+3.5.How to delete record
+package com.ibm.activerecord.resource;
+
+import com.ibm.activerecord.entity.Customer;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    //CURD operations
+    @GET
+    public List<Customer> findAll() {
+        return Customer.listAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public Customer findById(@PathParam("id") Integer id) {
+        Customer customer = Customer.findById(id);
+        if (customer == null) {
+            throw new WebApplicationException("Customer with Id of " + id + "does not exits");
+        }
+        return customer;
+    }
+
+    //Post
+    @POST
+    @Transactional
+    public Response create(Customer customer) {
+        if (customer.id != null) {
+            throw new WebApplicationException("Id was invalidly set on Request", 422);
+        }
+        customer.persist();
+        return Response.ok(customer).status(201).build();
+    }
+    //Update
+
+    @PUT
+    @Path("{id}")
+    @Transactional
+    public Customer update(@PathParam("id") Long id, Customer customer) {
+        if (customer.name == null) {
+            throw new WebApplicationException("Customer Name was not set on request " + 422);
+        }
+        Customer customerEntity = Customer.findById(id);
+        if (customerEntity == null) {
+            throw new WebApplicationException("Customer with ID Of " + id + "does not  exits", 404);
+        }
+        //update logic
+        customerEntity.name = customer.name;
+        customerEntity.city = customer.city;
+        return customerEntity;
+    }
+    //delete record
+    @DELETE
+    @Transactional
+    @Path("{id}")
+    public Response delete(@PathParam("id") Long id){
+        Customer customer = Customer.findById(id);
+        if(customer==null){
+            throw new WebApplicationException("Customer with ID Of " + id + "does not  exits", 404);
+        }
+        customer.delete();
+        return Response.status(204).build();
+    }
+}
+
+With Service layer:
+.....................
+package com.ibm.activerecord.services;
+
+import com.ibm.activerecord.entity.Customer;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@ApplicationScoped
+public class CustomerService {
+
+    //apis
+    public List<Customer> findAll() {
+        return Customer.listAll();
+    }
+
+    public Customer findById(Integer id) {
+        return Customer.findById(id);
+    }
+
+    @Transactional
+    public void create(Customer customer) {
+        customer.persist();
+    }
+
+    @Transactional
+    public Customer update(Integer id, Customer customer) {
+        if (customer.name == null) {
+            throw new WebApplicationException("Customer Name was not found" + 422);
+        }
+        Customer customerEntity = Customer.findById(id);
+        if (customerEntity == null) {
+            throw new WebApplicationException("Customer with ID of " + id + "does not exits");
+        }
+        customerEntity.name = customer.name;
+        customerEntity.city = customer.city;
+        return customerEntity;
+    }
+
+    @Transactional
+    public Response delete(Long id) {
+        Customer customer = Customer.findById(id);
+        if (customer == null) {
+            throw new WebApplicationException("Customer with ID of " + id + "does not exits");
+
+        }
+        customer.delete();
+        return Response.status(204).build();
+    }
+
+}
+package com.ibm.activerecord.resources;
+
+import com.ibm.activerecord.entity.Customer;
+import com.ibm.activerecord.services.CustomerService;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    @Inject
+    CustomerService customerService;
+
+    @GET
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<Customer> findAll() {
+        return customerService.findAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public Customer findById(@PathParam("id") Integer id) {
+        Customer customer = customerService.findById(id);
+        if (customer == null) {
+            throw new WebApplicationException("Customer with Id of " + id + " does not exit");
+        }
+        return customer;
+    }
+
+    @POST
+    public Response create(Customer customer) {
+        if (customer.id != null) {
+            throw new WebApplicationException("Id was invalidately set on Request", 422);
+        }
+        customerService.create(customer);
+        return Response.ok(customer).status(201).build();
+    }
+
+    @PUT
+    @Path("{id}")
+    public Customer update(@PathParam("id") Integer id, Customer customer) {
+        Customer customer1 = customerService.update(id, customer);
+        return customer1;
+    }
+
+    @DELETE
+    @Path("{id}")
+    public Response delete(@PathParam("id") Long id) {
+        return customerService.delete(id);
+    }
+
+
+}
+...................................................................................
+		Repository Pattern/DAO Pattern- Blocking way/Non Reactive
+...................................................................................
+
+
+Step 1: Declare Entity
+
+package com.ibm.dao.entity;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+
+@Entity
+public class Employee {
+    @Id
+    @GeneratedValue
+    public Long id;
+    @Column(name = "name")
+    public String name;
+    @Column(name = "city")
+    public String city;
+
+    public Employee() {
+    }
+
+    public Employee(Long id, String name, String city) {
+        this.id = id;
+        this.name = name;
+        this.city = city;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+}
+
+Declare Repository class.
+
+package com.ibm.dao.entity;
+
+import io.quarkus.hibernate.orm.panache.PanacheRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class EmployeeRepository implements PanacheRepository<Employee> {
+}
+
+
+Declare resource and start CURD Operations
+package com.ibm.dao.resources;
+
+import com.ibm.dao.entity.Employee;
+import com.ibm.dao.entity.EmployeeRepository;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("employees")
+public class EmployeeResource {
+
+    @Inject
+    EmployeeRepository employeeRepository;
+
+    @GET
+    public List<Employee> findAll() {
+        return employeeRepository.listAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public Employee findById(@PathParam("id") Long id) {
+        Employee employee = employeeRepository.findById(id);
+        if (employee == null) {
+            throw new WebApplicationException("Employee With ID Of " + id + "does not exit");
+        }
+        return employee;
+    }
+
+    @POST
+    @Transactional
+    public Response create(Employee employee) {
+        if (employee.id != null) {
+            throw new WebApplicationException("Employee Creation Error");
+        }
+        employeeRepository.persist(employee);
+        return Response.ok(employee).status(201).build();
+    }
+
+    @PUT
+    @Path("{id}")
+    @Transactional
+    //update
+    public Employee update(@PathParam("id") Long id, Employee employee) {
+        if (employee.name == null || employee.city == null) {
+            throw new WebApplicationException("Employee Name or city was not set on Request");
+        }
+        Employee employeeEntity = employeeRepository.findById(id);
+
+        if (employeeEntity == null) {
+            throw new WebApplicationException("Employee Id was not found");
+        }
+        employeeEntity.name = employee.name;
+        employeeEntity	.city = employee.city;
+        return employeeEntity;
+    }
+
+    @DELETE
+    @Path("{id}")
+    @Transactional
+    public Response delete(@PathParam("id") Long id) {
+        Employee employeeEntity = employeeRepository.findById(id);
+        if (employeeEntity == null) {
+            throw new WebApplicationException("Employee not available");
+        }
+        employeeRepository.delete(employeeEntity);
+        return Response.status(204).build();
+    }
+}
+///////////////////////////////////////////////////////////////////////////////////	
+			NonBlocking/Reactive Hibernate ORM Panache
+....................................................................................
+
+Steps:
+
+Steps:
+1.create new app
+  quarkus create app code-with-quarkus-reactive
+
+2.Dependencies
+  quarkus ext add io.quarkus:quarkus-rest-jackson
+  quarkus ext add io.quarkus:quarkus-hibernate-reactive-panache
+  quarkus ext add io.quarkus:quarkus-reactive-pg-client
+
+
+
+
+
+
+
+
+
+
