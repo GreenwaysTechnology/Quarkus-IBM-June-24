@@ -112,7 +112,7 @@ if i enable Database Perservice pattern, how to handle transactions and quries?
    2.CQRS/API Composition - Querying data - select,joins
 .....................................................................................
 ....................................................................................
-			Quarkus and Database Per Service Pattern
+		Quarkus and Database Per Service Pattern
 ....................................................................................
 Quarkus enables Database per Service pattern by default....
 
@@ -126,9 +126,9 @@ Quarkus implements JPA as low level specfication for database operations.
 
 Quarkus uses JPA With hibernate as low level implementation for Database operations.
 
-Quarkus has created a mini framwork which even sits on the top of hiberate Which is called "Panche"
+Quarkus has created a mini framwork which even sits on the top of hiberate Which is called "Panache"
 
-Panche:
+Panache:
  - It is highlevel abstraction for hibernate.
 
 		       Panache
@@ -146,7 +146,7 @@ Quarkus Database Programming implementation
 1.JPA with Hibernate only  -  legacy
 2.JPA With Hibernate with Panche - Modern.
 
-I am going to write code using Panche...
+I am going to write code using Panache...
 
 There is two style of writing code
 
@@ -154,7 +154,7 @@ There is two style of writing code
 2.Reactive - NonBlocking
 
 
-We are going to use Panche Framework to connect data sources.
+We are going to use Panache Framework to connect data sources.
 
 There are two design patterns
 1.Active Record Pattern
@@ -165,7 +165,7 @@ There are two design patterns
 				 |
 	        ----------------------------------------
 		|                                      |
-	  Hiberate only                               Panche
+	  Hiberate only                               Panache
 						       |
 					    ----------------------------		
 					   Reactive                    Non reactive
@@ -175,8 +175,8 @@ There are two design patterns
 					 Active Record          DAO/Repository
 
 
-We will dicuss "Panche with Reactive With Active Record and DAO"
-We will dicuss "Panche with Non Reactive With Active Record and DAO"
+We will dicuss "Panache with Reactive With Active Record and DAO"
+We will dicuss "Panache with Non Reactive With Active Record and DAO"
 
 Database configuration:
 
@@ -425,7 +425,7 @@ public class Customer extends PanacheEntity {
 }
 
 3.1.Write Resources to Get All Data
-3.1.Write Resources to Get All Data
+
 
 package com.ibm.activerecord.resource;
 
@@ -1047,8 +1047,391 @@ Steps:
   quarkus ext add io.quarkus:quarkus-hibernate-reactive-panache
   quarkus ext add io.quarkus:quarkus-reactive-pg-client
 
+ <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest-jackson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-reactive-panache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-reactive-pg-client</artifactId>
+    </dependency>
+
+....................................................................................
+			Active Record Pattern
+....................................................................................
+
+Declare Entity:
+package com.ibm.reative.data.activerecord;
+
+import io.quarkus.hibernate.reactive.panache.PanacheEntity;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+
+@Entity
+public class Customer extends PanacheEntity {
+    @Column(name = "name")
+    public String name;
+    @Column(name = "city")
+    public String city;
+}
+package com.ibm.reative.data.activerecord.resources;
+
+import com.ibm.reative.data.activerecord.Customer;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    @GET
+    public Uni<List<Customer>> findAll() {
+        return Customer.listAll();
+    }
+}
+
+findBy Id:
+package com.ibm.reative.data.activerecord.resources;
+
+import com.ibm.reative.data.activerecord.Customer;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    @GET
+    public Uni<List<Customer>> findAll() {
+        return Customer.listAll();
+    }
+
+    @Path("{id}")
+    @GET
+    public Uni<Response> findById(@PathParam("id") Long id) {
+        return Customer.findById(id).onItem().transform(entity -> {
+            if (entity == null) {
+                throw new WebApplicationException("Entity not Found");
+            }
+            return Response.ok(entity).build();
+        });
+    }
+}
 
 
+Active Pattern Post with Transaction:
+....................................
+
+Note :
+ We cant use any annotations...
+
+Panche.withTransaction
+
+package com.ibm.reative.data.activerecord.resources;
+
+import com.ibm.reative.data.activerecord.Customer;
+import io.quarkus.hibernate.reactive.panache.Panache;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    @POST
+    public Uni<Response> create(Customer customer) {
+        //error handler
+        if (customer == null || customer.name == null) {
+            throw new WebApplicationException("Customer Not Found");
+        }
+        return Panache.withTransaction(customer::persist)
+                .replaceWith(Response.ok(customer).status(Response.Status.CREATED).build());
+    }
+}
+
+Update:
+package com.ibm.reative.data.activerecord.resources;
+
+import com.ibm.reative.data.activerecord.Customer;
+import io.quarkus.hibernate.reactive.panache.Panache;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+     @PUT
+    @Path("{id}")
+    public Uni<Response> update(@PathParam("id") Long id, Customer customer) {
+
+        if (customer == null || customer.name == null) {
+            throw new WebApplicationException("Customer Name was not set on Request");
+        }
+        return Panache.withTransaction(() -> {
+            return Customer.<Customer>findById(id)
+                    .onItem()
+                    .ifNotNull()
+                    .invoke(entity -> {
+                        //update logic
+                        entity.city = customer.city;
+                        entity.name = customer.name;
+                    })
+                    .onItem()
+                    .ifNotNull()
+                    .transform(entity -> Response.ok(entity).status(200).build())
+                    .onItem()
+                    .ifNull().continueWith(Response.ok().status(Response.Status.NOT_FOUND)::build);
+        });
+
+    }
+
+
+}
+
+Delete:
+package com.ibm.reative.data.activerecord.resources;
+
+import com.ibm.reative.data.activerecord.Customer;
+import io.quarkus.hibernate.reactive.panache.Panache;
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("customers")
+public class CustomerResource {
+
+    @GET
+    public Uni<List<Customer>> findAll() {
+        return Customer.listAll();
+    }
+
+    @Path("{id}")
+    @GET
+    public Uni<Response> findById(@PathParam("id") Long id) {
+        return Customer.findById(id).onItem().transform(entity -> {
+            if (entity == null) {
+                throw new WebApplicationException("Entity not Found");
+            }
+            return Response.ok(entity).build();
+        });
+    }
+
+    @POST
+    public Uni<Response> create(Customer customer) {
+        //error handler
+        if (customer == null || customer.name == null) {
+            throw new WebApplicationException("Customer Not Found");
+        }
+        return Panache.withTransaction(customer::persist)
+                .replaceWith(Response.ok(customer).status(Response.Status.CREATED).build());
+    }
+
+    @PUT
+    @Path("{id}")
+    public Uni<Response> update(@PathParam("id") Long id, Customer customer) {
+
+        if (customer == null || customer.name == null) {
+            throw new WebApplicationException("Customer Name was not set on Request");
+        }
+        return Panache.withTransaction(() -> {
+            return Customer.<Customer>findById(id)
+                    .onItem()
+                    .ifNotNull()
+                    .invoke(entity -> {
+                        //update logic
+                        entity.city = customer.city;
+                        entity.name = customer.name;
+                    })
+                    .onItem()
+                    .ifNotNull()
+                    .transform(entity -> Response.ok(entity).status(200).build())
+                    .onItem()
+                    .ifNull().continueWith(Response.ok().status(Response.Status.NOT_FOUND)::build);
+        });
+
+    }
+    //remove
+
+    @Path("{id}")
+    @DELETE
+    public Uni<Response> delete(@PathParam("id") Long id) {
+        return Panache.withTransaction(() ->
+                Customer.deleteById(id).map(isDeleted ->
+                        isDeleted ? Response.ok().status(Response.Status.NO_CONTENT).build()
+                                : Response.ok().status(Response.Status.NOT_FOUND).build()
+                )
+        );
+    }
+
+}
+
+...................................................................................
+			DAO pattern with Non Blocking - Reactive
+...................................................................................
+Steps:
+
+1.package com.ibm.reactive.data.reposiotry;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+
+@Entity
+public class Employee {
+    @Id
+    @GeneratedValue
+    public Long id;
+    @Column(name = "name")
+    public String name;
+    @Column(name="city")
+    public String city;
+
+    public Employee() {
+    }
+
+    public Employee(String name, String city) {
+        this.name = name;
+        this.city = city;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getCity() {
+        return city;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+}
+
+Step 1 : Declare Repository Class
+package com.ibm.reactive.data.reposiotry;
+
+import io.quarkus.hibernate.reactive.panache.PanacheRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class EmployeeRespository implements PanacheRepository<Employee> {
+    
+}
+
+Step 3: REST API 
+
+->You have to inject Repository class
+->When we write "POST,UPDATE,DELETE"  ,we must enable "Transaction" via "@WithTransaction" Annotation
+
+Note:
+ IN Nonreactive , we "@Transactional" annotation
+ In Reactive and In DAO, we have to use "@WithTransaction" annotation.
+
+package com.ibm.reactive.data.reposiotry;
+
+import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
+import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("employees")
+public class EmployeeResource {
+
+    @Inject
+    EmployeeRespository respository;
+
+    @GET
+    public Uni<List<Employee>> findAll() {
+        return respository.listAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public Uni<Response> getEmployeeById(@PathParam("id") Long id) {
+        return respository.findById(id).onItem().transform(entity -> {
+            if (entity == null) {
+                throw new WebApplicationException("Employee with ID Of " + id + "does not  exits", 404);
+            }
+            return Response.ok(entity).status(200).build();
+        });
+    }
+
+    @POST
+    @WithTransaction //Reactive version of transaction annotation
+    public Uni<Response> create(Employee employee) {
+        //handle error
+        if (employee == null || employee.name == null) {
+            throw new WebApplicationException("Customer Not Found", 400);
+        }
+        return respository.persist(employee).onItem().transform(entity ->
+                Response.ok().status(201).entity(entity).build()
+        );
+    }
+
+    @PUT
+    @Path("{id}")
+    @WithTransaction
+    public Uni<Response> update(@PathParam("id") Long id, Employee employee) {
+        //handle error
+        if (employee == null || employee.name == null) {
+            throw new WebApplicationException("Employee Name was not set on request.", 422);
+        }
+        String query = "city='" + employee.getCity() + "' where id = ?1";
+        System.out.println(query);
+        return respository.update(query, id).onItem().transform(entity ->
+                Response.ok().status(200).entity(entity).build()
+        );
+    }
+
+    //Delete
+    @Path("{id}")
+    @DELETE
+    @WithTransaction
+    public Uni<Response> delete(@PathParam("id") Long id) {
+        return respository.deleteById(id).onItem().transform(isDeleted ->
+                isDeleted ? Response.ok().status(Response.Status.NO_CONTENT).build()
+                        : Response.ok().status(Response.Status.NOT_FOUND).build()
+        );
+    }
+}
 
 
 
