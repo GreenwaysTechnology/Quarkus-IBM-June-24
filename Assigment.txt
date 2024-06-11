@@ -20,3 +20,33 @@ Must have mock data -  can be stored into list or map.
 4.update course information by id
 5.remove course by id
 ....................................
+
+
+Assigment -2:
+
+You have to build api - Use Reactive apis
+
+Techstack:
+1.Use configurations
+2.Use Postgres db
+3.Use Reactive version and Non Reactive Version.
+4.Write Rest api to select,create,update,delete records
+
+Course Api
+ 
+courseId:1
+courseName:'Quarkus'
+duration:40 hrs
+startingDate: date
+endingDate: date
+category: 'java','js','ui','ai',
+instructor: 'Subramanian'
+
+Must have mock data -  can be stored into list or map.
+
+1.return all courses
+2.return course by id
+3.filter courses by category
+4.update course information by id
+5.remove course by id
+....................................
