@@ -1,0 +1,420 @@
+			 Microservice Communications
+.....................................................................................
+
+Services are represented by apis.
+
+API are represented in many ways.
+
+1.RPI
+ You have applied the Microservice architecture pattern. Services must handle requests from the application’s clients. Furthermore, services must sometimes collaborate to handle those requests. They must use an inter-process communication protocol.
+
+RPI technologies:
+1.REST and Graphql - http
+2.gRPC - http2/TCP
+3.Apache Thrift -thrift 
+
+2.Messaging
+You have applied the Microservice architecture pattern. Services must handle requests from the application’s clients. Furthermore, services often collaborate to handle those requests. Consequently, they must use an inter-process communication protocol.
+
+Use asynchronous messaging for inter-service communication. Services communicating by exchanging messages over messaging channels.
+
+Asynchronous messaging technologies
+
+Apache Kafka
+RabbitMQ
+
+
+RPI - REST To REST Commication
+...............................
+
+This type of communication is HTTP based communication/Http Microservices
+
+Quarkus Implementations:
+
+1.MicroProfile Rest client specification- Both reactive and non reactive.
+
+2.Vertx Web Client - By Default Reactive
+
+3.Java 11 HTTPClient -Blocking and Non blocking way...
+....................................................................................
+			MicroProfile Rest client specification
+....................................................................................
+
+In Service Communications, there would be two actors
+
+1.Caller
+  Who is calling the other services
+
+2.Callee
+   Who is called by the other services
+
+Flow:
+  
+ User/App------http-------->Caller------->Callee
+
+Create Caller App
+G:\IBM\2024\June\Quarkus\microservices\communication\rpi>quarkus create app caller-app
+
+Create Callee App
+G:\IBM\2024\June\Quarkus\microservices\communication\rpi>quarkus create app callee-app
+
+Caller Dependency:
+.................
+MicroProfile RestClient
+
+quarkus ext add io.quarkus:quarkus-rest-jackson
+quarkus ext add io.quarkus:quarkus-rest-client
+quarkus ext add io.quarkus:quarkus-rest-client-jackson
+
+Callee Dependency:
+
+quarkus ext add io.quarkus:quarkus-rest-jackson
+quarkus ext add io.quarkus:quarkus-rest-client
+quarkus ext add io.quarkus:quarkus-rest-client-jackson
+
+....................................................................................
+			 Callee coding
+...................................................................................
+
+application.properties
+quarkus.http.port=9000
+
+package com.ibm.callee.api;
+
+import jakarta.ws.rs.*;
+
+@Path("customers")
+public class CustomerResource {
+
+    @GET
+    public String findAll() {
+        return "FindAll Customers";
+    }
+
+    @Path("{id}")
+    @GET
+    public String findById(@PathParam("id") Long id) {
+        return "Find By Id " + id;
+    }
+
+    @POST
+    public String create(String payload) {
+        return "Saved  " + payload;
+    }
+
+    @PUT
+    @Path("{id}")
+    public String update(@PathParam("id") Long id) {
+        return "Update By id " + id;
+    }
+
+    @DELETE
+    @Path("{id}")
+    public String remove(@PathParam("id") Long id) {
+        return "Remove By id " + id;
+    }
+
+}
+
+The callee app is runing in 9000 port., later we have to use this url for communication
+ "http://localhost:9000/customers"
+
+Testing:
+
+quarkus dev
+....................................................................................
+		      Caller Coding
+...................................................................................
+
+In order to communicate callee, MicroProfile Rest Client Spec is used.
+
+MicroProfile Rest client offers an Interface, via that interface only we communicate.
+
+Steps:
+
+1.write Client interface
+
+package com.ibm.rest.communication.caller;
+
+import jakarta.ws.rs.*;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient
+@Path("customers")
+public interface CustomerRestClientService {
+    //api declaration of callee
+    @GET
+    String findAll();
+
+    @GET
+    @Path("{id}")
+    String findById(@PathParam("id") Long id);
+
+    @POST
+    String create(String payload);
+
+    @PUT
+    @Path("{id}")
+    String update(@PathParam("id") Long id);
+
+    @DELETE
+    @Path("{id}")
+    public String remove(@PathParam("id") Long id);
+}
+1.Here we need to declare interface
+2.Annotate interface with @RegisterRestClient
+3.Annotate Root path @Path("path")
+4.Http method apis are mapping inside interface
+
+Step 2 : Configuration in application.properties
+#RestClient Configuration
+com.ibm.rest.communication.caller.CustomerRestClientService/mp-rest/url=http://localhost:9000
+com.ibm.rest.communication.caller.CustomerRestClientService/mp-rest/scope=javax.inject.Singleton
+
+Step 3:
+ Write local Resource and Inject CustomerRestClient Interface
+package com.ibm.rest.communication.caller;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+
+@Path("customerproxy")
+public class CustomerRestProxyResource {
+
+    @Inject
+    @RestClient
+    CustomerRestClientService client;
+
+    @GET
+    public String findAll() {
+        return client.findAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public String findById(@PathParam("id") Long id) {
+        return client.findById(id);
+    }
+
+    @POST
+    public String create(String payload) {
+        return client.create(payload);
+    }
+
+    @PUT
+    @Path("{id}")
+    public String update(@PathParam("id") Long id) {
+        return client.update(id);
+    }
+
+    @DELETE
+    @Path("{id}")
+    public String remove(@PathParam("id") Long id) {
+        return client.remove(id);
+    }
+}
+
+Testing:
+
+GET localhost:8080/customerproxy
+
+GET localhost:8080/customerproxy/10
+
+POST localhost:8080/customerproxy
+  
+PUT localhost:8080/customerproxy/10
+
+DELETE localhost:8080/customerproxy/10
+
+...................................................................................
+			 Rest client With Reactive Response
+...................................................................................
+
+Callee:
+
+package com.ibm.callee.api;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.*;
+
+@Path("customers")
+public class CustomerResource {
+
+    @GET
+    public String findAll() {
+        return "FindAll Customers";
+    }
+
+    @Path("reactive")
+    @GET
+    public Uni<String> findByReactive() {
+        return Uni.createFrom().item("Customer Uni");
+    }
+
+    @Path("{id}")
+    @GET
+    public String findById(@PathParam("id") Long id) {
+        return "Find By Id " + id;
+    }
+
+    @POST
+    public String create(String payload) {
+        return "Saved  " + payload;
+    }
+
+    @PUT
+    @Path("{id}")
+    public String update(@PathParam("id") Long id) {
+        return "Update By id " + id;
+    }
+
+    @DELETE
+    @Path("{id}")
+    public String remove(@PathParam("id") Long id) {
+        return "Remove By id " + id;
+    }
+
+}
+
+
+Caller
+
+package com.ibm.rest.communication.caller;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.*;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@RegisterRestClient
+@Path("customers")
+public interface CustomerRestClientService {
+    //api declaration of callee
+    @GET
+    String findAll();
+
+
+    @GET
+    @Path("reactive")
+    Uni<String> findByReactive();
+
+    @GET
+    @Path("{id}")
+    String findById(@PathParam("id") Long id);
+
+    @POST
+    String create(String payload);
+
+    @PUT
+    @Path("{id}")
+    String update(@PathParam("id") Long id);
+
+    @DELETE
+    @Path("{id}")
+    public String remove(@PathParam("id") Long id);
+}
+
+package com.ibm.rest.communication.caller;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+
+@Path("customerproxy")
+public class CustomerRestProxyResource {
+
+    @Inject
+    @RestClient
+    CustomerRestClientService client;
+
+    @GET
+    public String findAll() {
+        return client.findAll();
+    }
+
+    @GET
+    @Path("{id}")
+    public String findById(@PathParam("id") Long id) {
+        return client.findById(id);
+    }
+
+    @GET
+    @Path("reactive")
+    public Uni<String> findByReactive() {
+        return client.findByReactive();
+    }
+
+    @POST
+    public String create(String payload) {
+        return client.create(payload);
+    }
+
+    @PUT
+    @Path("{id}")
+    public String update(@PathParam("id") Long id) {
+        return client.update(id);
+    }
+
+    @DELETE
+    @Path("{id}")
+    public String remove(@PathParam("id") Long id) {
+        return client.remove(id);
+    }
+}
+................................................................................
+...................................................................................
+		  MicroProfile Rest Client Refactored Configuration
+.....................................................................................
+
+application.properties
+com.ibm.rest.client.HelloRestClientService/mp-rest/url=http://localhost:9000
+com.ibm.rest.client.HelloRestClientService/mp-rest/scope=javax.inject.Singleton
+
+Here we have mentioned full package name with interface name, this can be simplified.
+
+package com.ibm.rest.communication.caller;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.*;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+//@RegisterRestClient
+@RegisterRestClient(configKey = "customers-api")
+@Path("customers")
+public interface CustomerRestClientService {
+    //api declaration of callee
+    @GET
+    String findAll();
+
+
+    @GET
+    @Path("reactive")
+    Uni<String> findByReactive();
+
+    @GET
+    @Path("{id}")
+    String findById(@PathParam("id") Long id);
+
+    @POST
+    String create(String payload);
+
+    @PUT
+    @Path("{id}")
+    String update(@PathParam("id") Long id);
+
+    @DELETE
+    @Path("{id}")
+    public String remove(@PathParam("id") Long id);
+}
+
+application.properties
+#RestClient Configuration
+#com.ibm.rest.communication.caller.CustomerRestClientService/mp-rest/url=http://localhost:9000
+#com.ibm.rest.communication.caller.CustomerRestClientService/mp-rest/scope=javax.inject.Singleton
+
+customers-api/mp-rest/url=http://localhost:9000
+customers-api/mp-rest/scope=javax.inject.Singleton
+
+
+

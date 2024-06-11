@@ -50,3 +50,27 @@ Must have mock data -  can be stored into list or map.
 4.update course information by id
 5.remove course by id
 ....................................
+
+Assigment 3: Service Communication with Datababse Implementation
+
+Assigment:
+
+There are two Services
+
+1.Libraray Service - caller
+2.Book Service - Callee
+
+User will talk to Libarary service, will access all book information..
+
+Book Service Must have the following apis
+
+1.Return all Books
+2.Return book by id
+3.Pass Book for save
+4.Update Book information
+5.Remove Book 
+
+Tech Stack:
+1.Reactive Hibernate Orm Panche - Both Reactive version- You can select Active Record or DAO pattern.
+
+2.Service Communication Pattern Using RPI implementation-Microprofile Reactive Client.
