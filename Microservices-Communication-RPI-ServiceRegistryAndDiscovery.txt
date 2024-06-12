@@ -246,6 +246,81 @@ http://localhost:8080/welcome
 Note:
  Services Registries are used only "REST-REST" communication... when services are dynamic...
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+			Load Balancing and scalability
+....................................................................................
+
+Running Multiple copies of the same service: Why should i do that?
+
+Uase cases:
+
+1.For scalling purpose , so that we balance more load.
+2.Failover, what if one service is down, so that other services will take care
+
+SmallRye Stork has in built load balancers
+The default one is "round robin"
+
+How to scale service?
+
+package com.ibm.rest.client.registry;
+
+import io.quarkus.runtime.StartupEvent;
+import io.vertx.core.Vertx;
+import io.vertx.ext.consul.ConsulClient;
+import io.vertx.ext.consul.ConsulClientOptions;
+import io.vertx.ext.consul.ServiceOptions;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+@ApplicationScoped
+public class BeanRegistry {
+    //Consul server Host
+    @ConfigProperty(name = "consul.host")
+    String host;
+    @ConfigProperty(name = "consul.port")
+    int port;
+    //service host and port
+    @ConfigProperty(name = "hello.service.port", defaultValue = "9000")
+    int helloPort;
+
+    public void init(@Observes StartupEvent event, Vertx vertx) {
+        ConsulClient client = ConsulClient.create(vertx,
+                new ConsulClientOptions().setHost(host).setPort(port));
+        //Register service with Consul Server
+        ServiceOptions serviceOptions1 = new ServiceOptions()
+                .setId("hello1")
+                .setName("hello-service")
+                .setAddress("localhost")
+                .setPort(helloPort);
+
+        ServiceOptions serviceOptions2 = new ServiceOptions()
+                .setId("hello2")
+                .setName("hello-service")
+                .setAddress("localhost")
+                .setPort(helloPort);
+
+        client.registerService(serviceOptions1);
+        client.registerService(serviceOptions2);
+
+    }
+}
+
+quarkus dev
+
+http://localhost:8500/ui/dc1/services/hello-service
+
+You will able to see two instances are running.
+
+
+
+
+
+
+
+
+
+
+
 
 
 
