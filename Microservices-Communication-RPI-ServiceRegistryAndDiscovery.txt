@@ -1,0 +1,257 @@
+			  Service Discovery and Registry
+.....................................................................................
+pattern:Service discovery
+
+How does the client of an RPI-based service discover the network location of a service instance?
+
+1.Client-side discovery - client queries a service registry to discover the locations 2.of service instances
+3.Server-side discovery - router queries a service registry to discover the locations of service instances
+4.Service registry - a database of service instance locations
+
+5.Self registration - service instance registers itself with the service registry
+6.3rd party registration - a 3rd party registers a service instance with the service registry
+
+What is Service Registry and Discovery?
+
+   Services typically need to call one another. In a monolithic application, services invoke one another through language-level method or procedure calls. In a traditional distributed system deployment, services run at fixed, well known locations (hosts and ports) and so can easily call one another using HTTP/REST or some RPC mechanism. However, a modern microservice-based application typically runs in a virtualized or containerized environments where the number of instances of a service and their locations changes dynamically.
+
+Registry:
+ It is database holding all service information
+
+Discovery:
+ Finding or discovering services registered inside registry server
+
+Types of Service Discovery?
+
+Pattern: Client-side service discovery
+ With help of coding, part of app
+Pattern: Server-side service discovery 
+ with help of third party router, outside app, eg aws elastic load balancer.
+
+.....................................................................................
+                     Client Side Service discovery in Quarkus
+.....................................................................................
+
+SmallRye Stork
+  SmallRye Stork 1.3.2 is a service discovery and client-side load-balancing framework.
+
+The essence of distributed systems resides in the interaction between services. In modern architecture, you often have multiple instances of your service to share the load or improve the resilience by redundancy. But, how do you select the best instance of your service? That’s where Stork helps. Stork is going to select the most appropriate instance. It offers:
+
+Extensible service discovery mechanisms
+Built-in support for Consul and Kubernetes
+Customizable client load-balancing strategies
+A programmatic API and a managed approach
+A Quarkus integration, but Stork can be used in any environment 
+
+Service Registry:
+  It is a database which can store all services with serviceName and its location
+
+Service Registry Implmenetations are Apache zookeer,Consul,DNS,Kubernets,Eureka..
+
+Strok is just abstraction(apis) which binds registrys for registration,discovery,load balancing
+
+
+
+Client [Strok][loadBalancer]-----|Consul--|
+
+
+Strok offers lot of Load balancer Algorithim
+
+1.Round Robin
+2.Random
+3.Least Requests
+4.Response Time
+5.Power Of Two Choices
+6.Sticky
+7.Custom Load Balancer
+Implementation:
+
+->We are going to use "consul" as Service Registery and Discovery Backend.
+
+Steps:
+
+1.create caller and callee app
+
+quarkus create app code-with-quarkus-service-registry-caller
+
+quarkus create app code-with-quarkus-service-registry-callee
+
+
+Caller Dependency:
+
+  <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-client-jackson</artifactId>
+        </dependency>
+     <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-smallrye-stork</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.smallrye.stork</groupId>
+            <artifactId>stork-service-discovery-consul</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.smallrye.reactive</groupId>
+            <artifactId>smallrye-mutiny-vertx-consul-client</artifactId>
+        </dependency>
+
+
+Callee
+
+package org.acme;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public Uni<String> hello() {
+        return Uni.createFrom().item("Hello Quarkus!");
+    }
+}
+...
+
+Caller:
+
+RestClient :interface
+
+package com.ibm.rest.client;
+
+import io.smallrye.mutiny.Uni;
+import jakarta.ws.rs.Path;
+import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
+
+@Path("hello")
+@RegisterRestClient(configKey = "hello-api")
+public interface HelloRestClientService {
+    Uni<String> hello();
+}
+
+
+package org.acme;
+
+import com.ibm.rest.client.HelloRestClientService;
+import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
+
+@Path("/greet")
+public class GreetingResource {
+
+    @Inject
+    @RestClient
+    HelloRestClientService helloRestClientService;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public Uni<String> hello() {
+        return helloRestClientService.hello();
+    }
+}
+
+run both apps
+
+http://localhost:8080/greet
+
+You get response from callee end point.
+....................................................................................
+			How to communicate via registry server
+....................................................................................
+
+Steps:
+1.start registry server.
+   Start Consul Server
+docker run --rm --name consul -p 8500:8500 -p 8501:8501 consul:1.7 agent -dev -ui -client=0.0.0.0 -bind=0.0.0.0 --https-port=8501
+
+
+2.application.properties - consule server configuration.
+
+#Registry Server Configuration
+quarkus.stork.hello-service.service-discovery.type=consul
+quarkus.stork.hello-service.service-discovery.consul-host=localhost
+quarkus.stork.hello-service.service-discovery.consul-port=8500
+
+
+
+
+3.Strok Registry Implementation inside caller app.
+package com.ibm.rest.client.registry;
+
+import io.quarkus.runtime.StartupEvent;
+import io.vertx.core.Vertx;
+import io.vertx.ext.consul.ConsulClient;
+import io.vertx.ext.consul.ConsulClientOptions;
+import io.vertx.ext.consul.ServiceOptions;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
+
+@ApplicationScoped
+public class BeanRegistry {
+    //Consul server Host
+    @ConfigProperty(name = "consul.host")
+    String host;
+    @ConfigProperty(name = "consul.port")
+    int port;
+    //service host and port
+    @ConfigProperty(name = "hello-service-port", defaultValue = "9000")
+    int helloPort;
+
+    public void init(@Observes StartupEvent event, Vertx vertx) {
+        ConsulClient client = ConsulClient.create(vertx,
+                new ConsulClientOptions().setHost(host).setPort(port));
+        //Register service with Consul Server
+        client.registerService(new ServiceOptions()
+                .setId("hello")
+                .setName("hello-service")
+                .setAddress("localhost")
+                .setPort(helloPort)
+        );
+    }
+}
+
+3.service reference inside application.properties
+
+hello-api/mp-rest/url=stork://hello-service
+hello-api/mp-rest/scope=javax.inject.Singleton
+
+4.Start caller app.
+
+quarkus dev
+
+Testing:
+Verify the Service Bean Registered inside Registry Server or Not
+
+http://localhost:8500/ui/dc1/services 
+
+Test Service which are working via Registry Server or not.
+http://localhost:8080/welcome
+
+
+Note:
+ Services Registries are used only "REST-REST" communication... when services are dynamic...
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+
+
+
+
+
+
+
+
