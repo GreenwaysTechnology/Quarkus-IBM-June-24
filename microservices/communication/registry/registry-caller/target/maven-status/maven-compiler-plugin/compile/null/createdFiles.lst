@@ -1,0 +1,3 @@
+com\ibm\rest\client\HelloRestClientService.class
+com\ibm\rest\client\registry\BeanRegistry.class
+org\acme\GreetingResource.class
