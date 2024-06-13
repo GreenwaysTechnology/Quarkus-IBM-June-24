@@ -1,0 +1,12 @@
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\EventService.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\EventsResource.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\EventStore.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\EventStoreRepository.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\Stock.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\StockAddedEvent.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\StockEvent.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\StockRemovedEvent.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\StockRepository.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\StockResource.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\com\ibm\eventsourcing\db\StockUpdatedEvent.java
+G:\IBM\2024\June\Quarkus\microservices\communication\messaging\eventsourcing-usingdb\src\main\java\org\acme\GreetingResource.java

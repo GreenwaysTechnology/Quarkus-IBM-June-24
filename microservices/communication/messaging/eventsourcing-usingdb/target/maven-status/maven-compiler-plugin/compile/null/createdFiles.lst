@@ -1,0 +1,15 @@
+com\ibm\eventsourcing\db\EventService.class
+com\ibm\eventsourcing\db\EventStore.class
+com\ibm\eventsourcing\db\StockResource.class
+com\ibm\eventsourcing\db\StockRemovedEvent.class
+com\ibm\eventsourcing\db\StockRepository.class
+com\ibm\eventsourcing\db\StockAddedEvent.class
+com\ibm\eventsourcing\db\StockUpdatedEvent$StockUpdatedEventBuilder.class
+com\ibm\eventsourcing\db\StockAddedEvent$StockAddedEventBuilder.class
+com\ibm\eventsourcing\db\StockEvent.class
+com\ibm\eventsourcing\db\EventsResource.class
+com\ibm\eventsourcing\db\Stock.class
+com\ibm\eventsourcing\db\EventStoreRepository.class
+com\ibm\eventsourcing\db\StockRemovedEvent$StockRemovedEventBuilder.class
+com\ibm\eventsourcing\db\StockUpdatedEvent.class
+org\acme\GreetingResource.class

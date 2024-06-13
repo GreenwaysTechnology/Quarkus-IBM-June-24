@@ -1,0 +1,1357 @@
+.....................................................................................
+		  Messaging Patterns and Event Driven Microservices
+.....................................................................................
+1.Event Sourcing and Domain Event:
+  
+ Event Driven Microservices are very usefull in many use cases.
+
+1.Distributed Database Transactions.
+
+Messaging Patterns Lead other Event Driven Design patterns
+
+1.Event Sourcing and Domain Event:
+..................................
+
+Context:
+A service command typically needs to create/update/delete aggregates in the database and send messages/events to a message broker(db/any message broker). 
+
+Service Command:
+  Service methods 
+
+Service Methods:
+
+1.Read - SELECT
+2.Write- INSERT,UPDATE,DELETE
+
+aggregates:
+ Object - Entity
+
+For Eg:
+ You have OrderService, which has commands
+  saveOrder
+  updateOrder 
+  deleteOrder
+These commands will perform database operations.
+
+Once database operations are over, we need to send/publish event into "Message Brokers (Kafka,RabbitMQ)"
+
+Domain Event:
+  It is similar to Event Sourcing Design pattern only but it depends on the "Domain Driven Design"
+
+
+DOMAIN EVENT VS EVENT SOURCING
+ 
+ Both are same.
+
+ Why 2.
+
+they differ how we can design "event".
+
+In Domain event  event is designed based on "DD" - Domain Driven design.
+event sourcing event is designed based on our own pattern.
+
+Typically event is object
+....................................................................................
+		Event Sourcing Design pattern Implementation
+....................................................................................
+
+There are many ways to implement event sourcing.
+
+1.Using database itself
+  Without using any message broker, we can store events inside database itself.
+
+2.Using Message Broker
+  To store events we can use Message Broker like Kafka,RabbitMQ.
+
+3.Using Message Broker and Database using "CDC"
+   To store events we use database , from database , we send events to brokers using technoloy called "Change Data Capture".
+
+
+Why Event Sourcing?
+
+=>Loosly coupled systems.
+
+Use case:
+
+Ram and raj both are friends who running small biz where both can sell products.
+when ever product is sold, we have to update inventory, when ever we buy  product we need to update inventory.
+
+ - when product is bought, inventory need to be added
+ - when product is sold , inventory need to be deducted.
+
+
+POST  /stock
+
+ {
+  name:'x'
+  qty:10
+ 
+ }
+ - we need to insert data into product table- qty 10,name
+
+
+POST  /stock
+
+ {
+  name:'x'
+  qty:5
+ 
+ }
+- we need to insert data into product table- qty 5,name
+
+select * from stock
+  x,15
+
+ram decided to change the software design.
+
+ inital design was to update stock qty, the same row is updated every biz transaction.
+
+when ever  or who ever add/remove stock, we need to capture that activity(event).
+
+
+Now we need to have two tables one is stock table, events table.
+.....................................................................................
+
+Steps:
+
+1.create project 
+
+ quarkus create app event-sourcing
+
+2.depedencies
+     <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.11.0</version>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-jdbc-postgresql</artifactId>
+    </dependency>
+   <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest-jackson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-hibernate-orm-panache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.18.32</version>
+      <scope>provided</scope>
+    </dependency>
+
+3.application.properties
+quarkus.datasource.devservices.enabled=true
+quarkus.hibernate-orm.database.generation=drop-and-create
+quarkus.hibernate-orm.log.sql=true
+
+
+1.Entities:
+Stock table and events table
+
+
+package com.ibm.eventsourcing.db;
+
+import jakarta.persistence.*;
+import lombok.Data;
+
+@Entity
+@Table(name = "stock")
+@Data
+public class Stock {
+    @Id
+    @GeneratedValue
+    public Long id;
+    @Column(name = "name")
+    public String name;
+    @Column(name = "qty")
+    public int quantity;
+    @Column(name = "userName")
+    public String user;
+}
+
+package com.ibm.eventsourcing.db;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+@Entity
+@Table(name = "events")
+public class EventStore {
+    @Id
+    @GeneratedValue
+    public long eventId;
+    public String eventType;
+    public String entityId;
+    public String eventData;
+    public LocalDateTime eventTime;
+}
+
+.......
+Repository class:
+Stock:
+package com.ibm.eventsourcing.db;
+
+import io.quarkus.hibernate.orm.panache.PanacheRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.List;
+
+@ApplicationScoped
+public class StockRepository implements PanacheRepository<Stock> {
+
+    public List findByName(String name) {
+        return list("name", name);
+    }
+}
+
+Events:
+package com.ibm.eventsourcing.db;
+
+import io.quarkus.hibernate.orm.panache.PanacheRepository;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class EventStoreRepository implements PanacheRepository<EventStore> {
+}
+...............................................................................
+Event Record Design:
+....................
+package com.ibm.eventsourcing.db;
+
+public interface StockEvent {
+}
+
+package com.ibm.eventsourcing.db;
+
+
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+public class StockAddedEvent implements StockEvent {
+    private Stock stockDetails;
+}
+package com.ibm.eventsourcing.db;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Builder
+@Data
+public class StockRemovedEvent implements StockEvent {
+    private Stock stockDetails;
+}
+package com.ibm.eventsourcing.db;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+public class StockUpdatedEvent implements StockEvent{
+    private Stock stockDetails;
+}
+
+....................
+Service:
+package com.ibm.eventsourcing.db;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+@ApplicationScoped
+public class EventService {
+    @Inject
+    EventStoreRepository repository;
+
+    public void addEvent(StockAddedEvent event) throws JsonProcessingException {
+        EventStore eventStore = new EventStore();
+        eventStore.setEventData(new ObjectMapper().writeValueAsString(event.getStockDetails()));
+        eventStore.setEventType("STOCK_ADDED");
+        eventStore.setEntityId(event.getStockDetails().getName());
+        eventStore.setEventTime(LocalDateTime.now());
+        //this will store every stock added event into table..
+        repository.persist(eventStore);
+    }
+
+    public void addEvent(StockUpdatedEvent event) throws JsonProcessingException {
+        EventStore eventStore = new EventStore();
+        eventStore.setEventData(new ObjectMapper().writeValueAsString(event.getStockDetails()));
+        eventStore.setEventType("STOCK_UPDATED");
+        eventStore.setEntityId(event.getStockDetails().getName());
+        eventStore.setEventTime(LocalDateTime.now());
+        //this will store every stock added event into table..
+        repository.persist(eventStore);
+    }
+
+    public void addEvent(StockRemovedEvent event) throws JsonProcessingException {
+        EventStore eventStore = new EventStore();
+        eventStore.setEventData(new ObjectMapper().writeValueAsString(event.getStockDetails()));
+        eventStore.setEventType("STOCK_REMOVED");
+        eventStore.setEntityId(event.getStockDetails().getName());
+        eventStore.setEventTime(LocalDateTime.now());
+        repository.persist(eventStore);
+    }
+
+    public List<EventStore> fetchAllEvents() {
+        return repository.listAll();
+    }
+
+}
+................
+
+Resources:
+
+Events Resource:
+package com.ibm.eventsourcing.db;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+
+import java.util.List;
+
+@Path("events")
+public class EventsResource {
+
+    @Inject
+    EventService eventService;
+
+    @GET
+    public List<EventStore> fetchAllEvents() {
+        return eventService.fetchAllEvents();
+    }
+}
+
+Stock Resource:
+package com.ibm.eventsourcing.db;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.gson.JsonParseException;
+import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("stock")
+public class StockResource {
+
+    @Inject
+    StockRepository stockRepository;
+
+    @Inject
+    EventService eventService;
+
+    @POST
+    @Transactional
+    public Response createOrder(Stock stockRequest) throws JsonProcessingException {
+        StockAddedEvent addedEvent = StockAddedEvent.builder().stockDetails(stockRequest).build();
+        StockUpdatedEvent updatedEvent = StockUpdatedEvent.builder().stockDetails(stockRequest).build();
+        List<Stock> existingStockList = stockRepository.findByName(stockRequest.getName());
+        if (existingStockList != null && existingStockList.size() > 0) {
+            Stock existingStock = existingStockList.get(0);
+            int newQuantity = existingStock.getQuantity() + stockRequest.getQuantity();
+            existingStock.quantity = newQuantity;
+            existingStock.name = stockRequest.name;
+            updatedEvent.setStockDetails(existingStock);
+            eventService.addEvent(updatedEvent);
+            return Response.ok().entity(existingStock).status(200).build();
+        } else {
+            stockRepository.persist(stockRequest);
+            eventService.addEvent(addedEvent);
+            return Response.ok().entity(stockRequest).status(201).build();
+        }
+    }
+
+    @DELETE
+    @Transactional
+    public void removeStock(Stock stock) throws JsonProcessingException {
+        StockRemovedEvent event = StockRemovedEvent.builder().stockDetails(stock).build();
+        int newQuantity = 0;
+        List<Stock> existingStockList = stockRepository.findByName(stock.getName());
+
+        if (existingStockList != null && existingStockList.size() > 0) {
+
+            Stock existingStock = existingStockList.get(0);
+
+            newQuantity = existingStock.getQuantity() - stock.getQuantity();
+
+            if (newQuantity <= 0) {
+                stockRepository.delete(existingStock);
+            } else {
+                existingStock.setQuantity(newQuantity);
+                existingStock.setUser(stock.getName());
+                stockRepository.persist(existingStock);
+            }
+            event.setStockDetails(existingStock);
+        }
+
+        eventService.addEvent(event);
+    }
+
+    @GET
+    public List<Stock> findAll() {
+        return stockRepository.listAll();
+    }
+
+    @GET
+    @Path("name")
+    public List<Stock> findByName(@QueryParam("name") String name) {
+        return stockRepository.findByName(name);
+    }
+}
+
+Testing:
+Testing:
+POST /stock
+{
+    "name":"Android",
+    "quantity":10,
+    "user":"subramanian"
+}
+Add two Products with data 
+POST /stock
+{
+    "name":"Android",
+    "quantity":10,
+    "user":"subramanian"
+}
+
+Check How many products
+
+GET /stock
+
+[
+    {
+        "id": 1,
+        "name": "Android",
+        "quantity": 20,
+        "user": "subramanian"
+    }
+]
+
+Check Events:
+localhost:8080/events
+
+[
+    {
+        "eventId": 1,
+        "eventType": "STOCK_ADDED",
+        "entityId": "Android",
+        "eventData": "{\"id\":1,\"name\":\"Android\",\"quantity\":10,\"user\":\"subramanian\"}",
+        "eventTime": "2024-05-25T16:27:48.219409"
+    },
+    {
+        "eventId": 2,
+        "eventType": "STOCK_UPDATED",
+        "entityId": "Android",
+        "eventData": "{\"id\":1,\"name\":\"Android\",\"quantity\":20,\"user\":\"subramanian\"}",
+        "eventTime": "2024-05-25T16:28:03.343587"
+    },
+    {
+        "eventId": 3,
+        "eventType": "STOCK_UPDATED",
+        "entityId": "Android",
+        "eventData": "{\"id\":1,\"name\":\"Android\",\"quantity\":30,\"user\":\"subramanian\"}",
+        "eventTime": "2024-05-25T16:28:04.620363"
+    },
+    {
+        "eventId": 4,
+        "eventType": "STOCK_REMOVED",
+        "entityId": "Android",
+        "eventData": "{\"id\":1,\"name\":\"Android\",\"quantity\":20,\"user\":\"Android\"}",
+        "eventTime": "2024-05-25T16:28:18.719883"
+    }
+]
+.....................................................................................
+		  Event Sourcing with Kafka( Any Message Broker)
+.....................................................................................
+Storing events into db is not suitable most of the use cases,so we need to store events into event store.
+
+Event Store:
+  The software/infrastructure which primarily designed for storing events.
+
+Event Store Products:
+
+1.Apache/Confluent Kafka
+   Most popular events storage software.
+
+2.event store: https://www.eventstore.com/
+  It is also one of the software Primiraly used to store events.
+
+3.Most of the cloud providers also offers event storage
+  eg
+   google pub-sub.
+
+4.RabbitMq, IBM MQ
+
+5.Redis message Broker
+etc....
+
+Our implementation is Kafka.
+.....................................................................................		         Domain Event and Event Sourcing Design Pattern
+			      Implementation
+		 (SmallRye Reactive Messaging Specification)
+.....................................................................................
+In spring we have Spring Cloud Stream..
+
+SmallRye Reactive Messaging Specification:
+..........................................
+SmallRye Reactive Messaging is a framework for building event-driven, data streaming, and event-sourcing applications using CDI.
+
+ It lets your application interaction using various messaging technologies such as Apache Kafka, AMQP or MQTT. The framework provides a flexible programming model bridging CDI and event-driven.
+
+
+Our Implementation Could be Apache Kafka:
+..........................................
+
+Apache Kafka is a popular open-source distributed event streaming platform. It is used commonly for high-performance data pipelines, streaming analytics, data integration, and mission-critical applications. Similar to a message queue, or an enterprise messaging platform, it lets you:
+
+
+1.publish (write) and subscribe to (read) streams of events, called records.
+
+2.store streams of records durably and reliably inside topics.
+
+3.process streams of records as they occur or retrospectively.
+
+
+Core Concepts of SmallRye Reactive Messaging:
+....................................
+
+1.Message:
+..........
+Applications send and receive messages. A message wraps a payload and can be extended with some metadata. With the Kafka connector, a message corresponds to a Kafka record.
+
+
+2.Channels:
+ Messages transit on channels. Application components connect to channels to publish and consume messages. The Kafka connector maps channels to Kafka topics.
+
+3.Connectors:
+  Channels are connected to message backends using connectors.
+Connectors are configured to map incoming messages to a specific channel (consumed by the application) and collect outgoing messages sent to a specific channel. Each connector is dedicated to a specific messaging technology. For example, the connector dealing with Kafka is named smallrye-kafka.
+
+....................................................................................
+			 Connectors
+
+Connectors:
+  Reactive Messaging can handle messages generated from within the application but also interact with remote brokers. Reactive Messaging Connectors interacts with these remote brokers to retrieve messages and send messages using various protocols and technology.
+
+Each connector handles to a specific technology. For example, a Kafka Connector is responsible for interacting with Kafka, while an MQTT Connector is responsible for MQTT interactions.
+
+Connector name:
+...............
+Each connector has a name. This name is referenced by the application to indicate that this connector manages a specific channel.
+
+For example, the SmallRye Kafka Connector is named: smallrye-kafka
+
+Types of Connectors:
+....................
+
+Inbound and Outbound connectors
+
+Connector can:
+1.retrieve messages from a remote broker (inbound)
+
+2.send messages to a remote broker (outbound)
+
+3.A connector can, of course, implement both directions.InBound and OutBound.
+
+.........................................................................
+
+Role of InBound connector:
+..........................
+
+1.Inbound connectors are responsible for:
+
+	1..1.Getting messages from the remote broker,
+
+	1.2.Creating a Reactive Messaging "Message" associated with the retrieved 	message.
+
+	1.3.Potentially associating technical metadata with the message.
+	   It includes unmarshalling the payload.
+
+	1.4.Associating an acknowledgment callback to acknowledge the incoming 	   message when the Reactive Messaging message is processed/acknowledged.
+
+
+Role of OutBound Connector:
+
+Outbound connectors are responsible for:
+
+	1.1.Receiving Reactive Messaging Message and transform it into a structure             understood by the remote broker. It includes marshaling the payload.
+
+	1.2..If the Message contains outbound metadata (metadata set during the 	     processing to influence the outbound structure and routing), taking them              into account.
+
+        1.3.Sending the message to the remote broker.
+
+	1.4. Acknowledging the Reactive Messaging Message when the broker has              accepted/acknowledged the message.
+
+Configuring Connectors:
+......................
+Configuration is done in application.properties 
+
+mp.messaging.[incoming|outgoing].[channel-name].[attribute]=[value]
+
+eg:
+mp.messaging.incoming.dummy-incoming-channel.connector=dummy (kafka)
+mp.messaging.incoming.dummy-incoming-channel.attribute=value
+ 
+mp.messaging.outgoing.dummy-outgoing-channel.connector=dummy (RabbitMq)
+mp.messaging.outgoing.dummy-outgoing-channel.attribute=value
+
+
+Mapping Channels In the Code:
+.............................
+  We use annotations to map channels
+
+
+@Incoming:
+//////////
+The [incoming|outgoing] segment indicates the direction.
+
+	an incoming channel consumes data from a message broker or something producing data.
+     It’s an inbound interaction. It relates to methods annotated with an @Incoming using the same channel name.
+
+@Outgoing:
+	an outgoing consumes data from the application and forwards it to a message broker or something consuming data. 
+	It’s an outbound interaction.
+ It relates to methods annotated with an @Outgoing using the same channel name.
+
+Channel Name:
+..............
+ The [channel-name] is the name of the channel. 
+  If the channel name contains a . (dot), you would need to use " (double-quote) around it. For example, to configure the dummy.incoming.channel channel, you would need:
+
+mp.messaging.incoming."dummy.incoming.channel".connector=dummy
+mp.messaging.incoming."dummy.incoming.channel".attribute=value
+
+
+Attributes:
+..........
+ The [attribute]=[value] sets a "specific connector" attribute to the given value. Attributes depend on the used connector. So, refer to the connector documentation to check the supported attributes.
+
+Here is an example of a channel using an MQTT connector, consuming data from a MQTT broker, and a channel using a Kafka connector (writing data to Kafka):
+
+# [Channel - health] - Consume data from MQTT
+
+mp.messaging.incoming.health.topic=neo
+mp.messaging.incoming.health.connector=smallrye-mqtt
+mp.messaging.incoming.health.host=localhost
+mp.messaging.incoming.health.broadcast=true
+# [/Channel - health]
+
+# [Channel - data] - Produce data to Kafka
+mp.messaging.outgoing.data.connector=smallrye-kafka
+mp.messaging.outgoing.data.bootstrap.servers=localhost:9092
+mp.messaging.outgoing.data.key.serializer=org.apache.kafka.common.serialization.StringSerializer
+mp.messaging.outgoing.data.value.serializer=io.vertx.kafka.client.serialization.JsonObjectSerializer
+mp.messaging.outgoing.data.acks=1
+# [/Channel - data]
+
+...................................................................................
+			  Receiving Messages from the Kafka
+...................................................................................
+
+
+1.Listener Pattern:
+ Just declare method inside class , declare that method as listener... and read messages.
+
+
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class PriceConsumer {
+
+    @Incoming("prices")
+    public void consume(double price) {
+        // process your price.
+    }
+
+}
+Different ways of consuming messages:
+.....................................
+
+@Incoming("prices")
+public CompletionStage<Void> consume(Message<Double> msg) {
+    // access record metadata
+    var metadata = msg.getMetadata(IncomingKafkaRecordMetadata.class).orElseThrow();
+    // process the message payload.
+    double price = msg.getPayload();
+    // Acknowledge the incoming message (commit the offset)
+    return msg.ack();
+}
+
+Kafka stores data as records:
+if you want to access Kafka Records directly...
+
+@Incoming("prices")
+public void consume(ConsumerRecord<String, Double> record) {
+    String key = record.key(); // Can be `null` if the incoming record has no key
+    String value = record.value(); // Can be `null` if the incoming record has no value
+    String topic = record.topic();
+    int partition = record.partition();
+    // ...
+}
+
+2.Dependency Injection Pattern:
+
+ Channels can be injected into class and we can read messages...
+
+import io.smallrye.mutiny.Multi;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import org.jboss.resteasy.reactive.RestStreamElementType;
+
+@Path("/prices")
+public class PriceResource {
+
+    @Inject
+    @Channel("prices")
+    Multi<Double> prices;
+
+    @GET
+    @RestStreamElementType(MediaType.TEXT_PLAIN)
+    public Multi<Double> stream() {
+        return prices;
+    }
+}
+
+@Inject @Channel("prices") Multi<Double> streamOfPayloads;
+
+@Inject @Channel("prices") Multi<Message<Double>> streamOfMessages;
+
+@Inject @Channel("prices") Publisher<Double> publisherOfPayloads;
+
+@Inject @Channel("prices") Publisher<Message<Double>> publisherOfMessages;
+.....................................................................................
+
+.....................................................................................
+			 Sending Messages To Kafka
+.....................................................................................
+
+Configuration :
+
+%prod.kafka.bootstrap.servers=kafka:9092 
+mp.messaging.outgoing.prices-out.connector=smallrye-kafka 
+mp.messaging.outgoing.prices-out.topic=prices 
+
+prices-out - channel Name where we publish Records/Messages.
+
+How to map out going channal.
+
+import io.smallrye.mutiny.Multi;
+import org.eclipse.microprofile.reactive.messaging.Outgoing;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import java.time.Duration;
+import java.util.Random;
+
+@ApplicationScoped
+public class KafkaPriceProducer {
+
+    private final Random random = new Random();
+
+    @Outgoing("prices-out")
+    public Multi<Double> generate() {
+        // Build an infinite stream of random prices
+        // It emits a price every second
+        return Multi.createFrom().ticks().every(Duration.ofSeconds(1))
+            .map(x -> random.nextDouble());
+    }
+
+}
+
+Note:
+  You should not call methods annotated with @Incoming and @Outgoing directly from   your   code.
+
+Note that the generate method returns a Multi<Double>, which implements the Reactive Streams Publisher interface. This publisher will be used by the framework to generate messages and send them to the configured Kafka topic.
+
+Different Syntax:
+@Outgoing("out")
+public Multi<Record<String, Double>> generate() {
+    return Multi.createFrom().ticks().every(Duration.ofSeconds(1))
+        .map(x -> Record.of("my-key", random.nextDouble()));
+}
+
+@Outgoing("generated-price")
+public Multi<Message<Double>> generate() {
+    return Multi.createFrom().ticks().every(Duration.ofSeconds(1))
+            .map(x -> Message.of(random.nextDouble())
+                    .addMetadata(OutgoingKafkaRecordMetadata.<String>builder()
+                            .withKey("my-key")
+                            .withTopic("my-key-prices")
+                            .withHeaders(new RecordHeaders().add("my-header", "value".getBytes()))
+                            .build()));
+}
+
+...................................................................................
+			How to push messages from the Rest api
+....................................................................................
+
+@Emitter
+Sending messages with @Emitter:
+
+Sometimes, you need to have an imperative way of sending messages.
+
+For example, if you need to send a message to a stream when receiving a POST request inside a REST endpoint. In this case, you cannot use @Outgoing because your method has parameters.
+
+For this, you can use an Emitter.
+
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/prices")
+public class PriceResource {
+
+    @Inject
+    @Channel("price-create")
+    Emitter<Double> priceEmitter;
+
+    @POST
+    @Consumes(MediaType.TEXT_PLAIN)
+    public void addPrice(Double price) {
+        CompletionStage<Void> ack = priceEmitter.send(price);
+    }
+}
+....................................................................................
+
+....................................................................................
+
+How to send Message with ack?
+
+import org.eclipse.microprofile.reactive.messaging.Channel;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.core.MediaType;
+
+import io.smallrye.reactive.messaging.MutinyEmitter;
+
+@Path("/prices")
+public class PriceResource {
+
+    @Inject
+    @Channel("price-create")
+    MutinyEmitter<Double> priceEmitter;
+
+    @POST
+    @Consumes(MediaType.TEXT_PLAIN)
+    public Uni<String> addPrice(Double price) {
+        return quoteRequestEmitter.send(price)
+                .map(x -> "ok")
+                .onFailure().recoverWithItem("ko");
+    }
+}
+.....................................................................................
+
+Implementation:
+
+    <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-messaging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-messaging-kafka</artifactId>
+       </dependency>
+
+
+package org.acme;
+
+import io.quarkus.runtime.StartupEvent;
+import org.eclipse.microprofile.reactive.messaging.*;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
+import java.util.stream.Stream;
+
+@ApplicationScoped
+public class MyMessagingApplication {
+
+    @Inject
+    @Channel("words-out")
+    Emitter<String> emitter;
+
+    /**
+     * Sends message to the "words-out" channel, can be used from a JAX-RS resource or any bean of your application.
+     * Messages are sent to the broker.
+     **/
+    void onStart(@Observes StartupEvent ev) {
+        Stream.of("Hello", "with", "Quarkus", "Messaging", "message")
+                .forEach(string -> emitter.send(string));
+    }
+
+    /**
+     * Consume the message from the "words-in" channel, uppercase it and send it to the uppercase channel.
+     * Messages come from the broker.
+     **/
+    @Incoming("words-in")
+    @Outgoing("uppercase") //in memory channel- no physical topic is mapped in Kafka.
+    public Message<String> toUpperCase(Message<String> message) {
+        return message.withPayload(message.getPayload().toUpperCase());
+    }
+
+    /**
+     * Consume the uppercase channel (in-memory) and print the messages.
+     **/
+    @Incoming("uppercase")
+    public void sink(String word) {
+        System.out.println(">> " + word);
+    }
+}
+
+application.properties
+
+#kafka.bootstrap.servers=kafka:9092
+#mp.messaging.outgoing.data.bootstrap.servers=localhost:9092
+
+quarkus.kafka.devservices.enabled=true
+#Incoming
+
+mp.messaging.incoming.words-in.connector=smallrye-kafka
+mp.messaging.incoming.words-in.topic=words
+
+#outgoing
+mp.messaging.outgoing.words-out.connector=smallrye-kafka
+mp.messaging.outgoing.words-out.topic=words
+mp.messaging.incoming.words-in.auto.offset.reset=earliest
+
+
+How to push Message from Rest api?
+
+package org.acme;
+
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
+@Path("/hello")
+public class GreetingResource {
+
+    @Inject
+    @Channel("words-out")
+    Emitter<String> emitter;
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return "Hello from Quarkus REST";
+    }
+
+    @POST
+    public String post(String message){
+        emitter.send(message);
+        return "Posted";
+    }
+}
+.....................................................................................
+		Event Sourcing with Reactive Messaging using Kafka
+.....................................................................................
+
+Note:
+ Before we have seen how we can implement EventSourcing with Database 
+ Now we are going to see how to push events into kafka.
+
+Steps:
+1.create project
+
+ create quarkus app eventsourcing-kafka
+
+2.Dependencies:
+<dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.11.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.32</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-messaging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-messaging-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-reactive-pg-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-hibernate-reactive-panache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest-jackson</artifactId>
+        </dependency>
+
+3.application.properties
+mp.messaging.incoming.words-in.topic=words
+mp.messaging.outgoing.words-out.topic=words
+mp.messaging.incoming.words-in.auto.offset.reset=earliest
+#stock
+
+mp.messaging.incoming.stock-in.connector=smallrye-kafka
+mp.messaging.outgoing.stock.connector=smallrye-kafka
+mp.messaging.outgoing.stock.topic=stock
+mp.messaging.incoming.stock-in.topic=stock
+quarkus.kafka.devservices.enabled=true
+quarkus.datasource.devservices.enabled=true
+quarkus.hibernate-orm.database.generation=drop-and-create
+quarkus.hibernate-orm.log.sql=true
+
+Program
+package org.acme;
+
+import io.quarkus.runtime.StartupEvent;
+import org.eclipse.microprofile.reactive.messaging.*;
+
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.event.Observes;
+import jakarta.inject.Inject;
+
+import java.util.stream.Stream;
+
+@ApplicationScoped
+public class MyReactiveMessagingApplication {
+
+    @Inject
+    @Channel("words-out")
+    Emitter<String> emitter;
+
+    /**
+     * Sends message to the "words-out" channel, can be used from a JAX-RS resource or any bean of your application.
+     * Messages are sent to the broker.
+     **/
+    void onStart(@Observes StartupEvent ev) {
+        Stream.of("Hello", "with", "SmallRye", "reactive", "message").forEach(string -> emitter.send(string));
+    }
+
+    /**
+     * Consume the message from the "words-in" channel, uppercase it and send it to the uppercase channel.
+     * Messages come from the broker.
+     **/
+    @Incoming("words-in")
+    @Outgoing("uppercase")
+    public Message<String> toUpperCase(Message<String> message) {
+        return message.withPayload(message.getPayload().toUpperCase());
+    }
+
+    /**
+     * Consume the uppercase channel (in-memory) and print the messages.
+     **/
+    @Incoming("uppercase")
+    public void sink(String word) {
+        System.out.println(">> " + word);
+    }
+
+    @Incoming("stock-in")
+    public void stockSink(String stocks) {
+        System.out.println(">> " + stocks);
+    }
+}
+....................................................................................
+package com.ibm.event.sourcing;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
+import io.smallrye.mutiny.Uni;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.Response;
+
+import java.util.List;
+
+@Path("stock")
+public class StockResource {
+
+    @Inject
+    StockRepo repository;
+    @Inject
+    EventService eventService;
+
+    //addStock
+    @POST
+    @WithTransaction
+    public Uni<Response> addStock(Stock stockRequest) throws JsonProcessingException {
+        System.out.println(stockRequest);
+        StockAddedEvent event = StockAddedEvent.builder().stockDetails(stockRequest).build();
+
+        return repository.findByName(stockRequest.getName()).onItem().transformToUni(existingStockList -> {
+            if (existingStockList != null && existingStockList.size() > 0) {
+                System.out.println("Item  available");
+                Stock existingStock = existingStockList.get(0);
+                int newQuantity = existingStock.getQuantity() + stockRequest.getQuantity();
+                existingStock.setQuantity(newQuantity);
+                existingStock.setUserName(stockRequest.getUserName());
+                String query = "quantity=" + existingStock.getQuantity() + " where name = ?1";
+                System.out.println(query);
+                return repository.update(query, existingStock.name).onItem().transform(entity -> {
+                            try {
+                                eventService.addEvent(event);
+                                return Response.ok().status(200).entity(entity).build();
+                            } catch (JsonProcessingException e) {
+                                throw new RuntimeException(e);
+                            }
+
+                        }
+                );
+            } else {
+                System.out.println("Item not available");
+                return repository.persist(stockRequest).onItem().transform(entity ->
+                        {
+                            try {
+                                eventService.addEvent(event);
+                                return Response.ok().status(201).entity(entity).build();
+                            } catch (JsonProcessingException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                );
+            }
+        });
+    }
+
+    //Stock remove
+    @DELETE
+    @WithTransaction
+    public Uni<Response> removeStock(Stock stockRequest) throws JsonProcessingException {
+        System.out.println(stockRequest);
+        StockRemovedEvent event = StockRemovedEvent.builder().stockDetails(stockRequest).build();
+        return repository.findByName(stockRequest.getName()).onItem().transformToUni(existingStockList -> {
+            int newQuantity = 0;
+            if (existingStockList != null && existingStockList.size() > 0) {
+                System.out.println("Item  available");
+                Stock existingStock = existingStockList.get(0);
+                newQuantity = existingStock.getQuantity() - stockRequest.getQuantity();
+                if (newQuantity <= 0) {
+                    try {
+                        repository.delete(existingStock).subscribe().with(res -> {
+                            System.out.println("Done!!");
+                        });
+                        eventService.addEvent(event);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+
+                } else {
+                    //existingStock.setQuantity(newQuantity);
+                    //existingStock.setUserName(stockRequest.getUserName());
+                    String query = "quantity=" + newQuantity + " where name = ?1";
+                    System.out.println(query);
+                    return repository.update(query, existingStock.name).onItem().transform(entity -> {
+                                try {
+                                    eventService.addEvent(event);
+                                    return Response.ok().status(200).entity(entity).build();
+                                } catch (JsonProcessingException e) {
+                                    throw new RuntimeException(e);
+                                }
+
+                            }
+                    );
+                }
+            }
+            return Uni.createFrom().item("Removed").onItem().transform(res -> Response.ok().build());
+        });
+
+
+    }
+
+
+    @GET
+    public Uni<List<Stock>> findAll() {
+        return repository.listAll();
+    }
+
+
+    @GET
+    @Path("{name}")
+    public Uni<List<Stock>> getStock(@PathParam("name") String name) throws JsonProcessingException {
+        return repository.findByName(name);
+    }
+
+}
+....
+
+package com.ibm.event.sourcing;
+
+import lombok.Data;
+
+import java.time.LocalDateTime;
+
+@Data
+public class EventRecord {
+    private long eventId;
+    private String eventType;
+    private String entityId;
+    private String eventData;
+    private LocalDateTime eventTime;
+}
+........
+package com.ibm.event.sourcing;
+
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.eclipse.microprofile.reactive.messaging.Channel;
+import org.eclipse.microprofile.reactive.messaging.Emitter;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+import java.util.concurrent.CompletionStage;
+
+@ApplicationScoped
+public class EventService {
+    @Inject
+    @Channel("stock")
+    Emitter<EventRecord> template;
+
+    //addEvent
+
+    public void addEvent(StockAddedEvent event) throws JsonProcessingException {
+        EventRecord eventRecord = new EventRecord();
+        eventRecord.setEventData(new ObjectMapper().writeValueAsString(event.getStockDetails()));
+        eventRecord.setEventType(StockStatus.STOCK_ADDED.name());
+        eventRecord.setEventId(UUID.randomUUID().getMostSignificantBits());
+        eventRecord.setEntityId(event.getStockDetails().getName());
+        eventRecord.setEventTime(LocalDateTime.now());
+        //send message into kafka
+        CompletionStage<Void> future = template.send(eventRecord);
+        future.whenComplete((result, ex) -> {
+            if (ex == null) {
+                System.out.println(result);
+            } else {
+                System.out.println(ex.getMessage());
+            }
+        });
+
+    }
+
+    public void addEvent(StockRemovedEvent event) throws JsonProcessingException {
+        EventRecord eventRecord = new EventRecord();
+        eventRecord.setEventData(new ObjectMapper().writeValueAsString(event.getStockDetails()));
+        eventRecord.setEventType(StockStatus.STOCK_REMOVED.name());
+        eventRecord.setEventId(UUID.randomUUID().getMostSignificantBits());
+        eventRecord.setEntityId(event.getStockDetails().getName());
+        eventRecord.setEventTime(LocalDateTime.now());
+        //send message into kafka
+        CompletionStage<Void> future = template.send(eventRecord);
+        future.whenComplete((result, ex) -> {
+            if (ex == null) {
+                System.out.println(result);
+            } else {
+                System.out.println(ex.getMessage());
+            }
+        });
+
+    }
+}
+...
+
+package com.ibm.event.sourcing;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+public class StockAddedEvent implements StockEvent {
+    private Stock stockDetails;
+}
+package com.ibm.event.sourcing;
+
+public interface StockEvent {
+}
+...
+package com.ibm.event.sourcing;
+
+import lombok.Builder;
+import lombok.Data;
+
+@Builder
+@Data
+public class StockRemovedEvent implements StockEvent {
+    private Stock stockDetails;
+}
+
+...
+package com.ibm.event.sourcing;
+
+import io.quarkus.hibernate.reactive.panache.PanacheRepository;
+import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
+
+import java.util.List;
+
+@ApplicationScoped
+public class StockRepo implements PanacheRepository<Stock> {
+    //custom Query
+    public Uni<List<Stock>> findByName(String name) {
+        return list("name", name);
+    }
+}
+package com.ibm.event.sourcing;
+
+public enum StockStatus {
+    STOCK_ADDED ,
+    STOCK_REMOVED
+}
+......................................................................................
+
+
+
+
+
+
+
