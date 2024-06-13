@@ -1,0 +1,388 @@
+                              Event Driven Microservices
+
+
+Microservice Communications
+
+
+Pattern: Messaging:
+...................
+You have applied the Microservice architecture pattern. Services must handle requests from the application’s clients. Furthermore, services often collaborate to handle those requests. Consequently, they must use an inter-process communication protocol.
+
+
+Forces
+Services often need to collaborate
+Synchronous communicate results in tight runtime coupling, both the client and service must be available for the duration of the request
+
+Solution:
+
+ Use asynchronous messaging for inter-service communication. Services communicating by exchanging messages over "messaging channels".
+
+There are numerous examples of asynchronous messaging technologies
+
+Apache Kafka
+RabbitMQ
+
+.....................................................................................
+			   Event Driven Microservices
+....................................................................................
+
+Microservices are going to exchange data over messaging channels async , so those microservices are called as "Event Driven Microservices"
+
+Quarkus and Event Driven Microservices:
+........................................
+Quarkus offers two implementations
+
+1.Vertx Event Bus
+2.SmallRye Reactive Messaging Specification
+
+
+1.Vertx Event Bus:
+
+AKKA - Actor Model Based.
+
+Actor model is architure model which describes how data can be exchanged among programs we call services using "message oriented and event driven".
+
+Vertx inspired from akka with respect to message passing techniques, now we can pass messages using vertx  "Event Bus".
+
+Event Bus:
+ -Event bus is object through which we can exchange messages async.
+ -Event bus is just like message broker which in memory message broker
+ -Event bus uses queue to store messages
+ -Event bus communicates via tcp protocal
+ -Event bus can exchange any type of data- including json.
+ -Event bus can be used to send and receive messages across the system.
+ -In Quarkus Event bus cant be used to send and receives among services
+
+
+Event Bus is "Vertx" feature, you can use inside Quarkus application.
+
+There is some limitation inside Quarkus, We cant send and received messages across the microservices..
+Eg:
+  OrderMicroservice cant send message to ProductMicroservice which are two different apps.
+
+But if you have separate vertx apps, you can send and receive messages across the system - Vertx Provides an infrastructure called "vertx Cluster".
+Quarkus does not have Vertx Cluster.
+
+...................................................................................
+...................................................................................
+			Quarkus and Event Bus Implementation
+...................................................................................
+
+Quarkus allows different beans to interact using asynchronous events, thus promoting loose coupling.
+
+The messages are sent to virtual locations(addresses).
+
+It offeres three different deliver mechansim..
+
+1.point-to-point:
+    Send the message, one Consumer receives it.if Serveral Consumers listen to the address, round robin is applied.
+
+2.publish/subscribe:
+    Publish a message, all the consumers listening to the address are receving the message;
+
+3.request/reply:
+   send the message and expect a response, The receiver can respond to the a message in async fashion.
+
+
+Create Project with following dependency:
+
+quarkus create app code-with-quarkus-eventbus
+
+Dependencies:
+quarkus ext add quarkus-vertx
+
+<dependency>
+   <groupId>io.quarkus</groupId>
+   <artifactId>quarkus-vertx</artifactId>
+</dependency>
+
+Without Event Bus How Resource and Bean Communication is?
+
+package com.ibm.service.communication.eventbus;
+
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class GreetingService {
+
+    public String consume(String name) {
+        return name.toUpperCase();
+    }
+}
+
+package org.acme;
+
+import com.ibm.service.communication.eventbus.GreetingService;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+
+@Path("/hello")
+public class GreetingResource {
+
+    @Inject
+    GreetingService greetingService;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    public String hello() {
+        return greetingService.consume("Subramanian");
+    }
+}
+
+Here GreetingResource and Greeting Service is "tightly Coupled"...It synch call...
+
+If you want to make async calls, and loose coupling, now We use event Bus...
+
+
+package com.ibm.service.communication.eventbus;
+
+import io.quarkus.vertx.ConsumeEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class GreetingService {
+
+    @ConsumeEvent
+    public String consume(String name) {
+        return name.toUpperCase();
+    }
+}
+
+
+1.@ConsumeEvent
+  It has address, if not set, address is fully Qualified name of the name, for eg 
+  com.ibm.service.communication.eventbus.GreetingService
+  
+2.String name
+ The method parameter is message body, if the method returns something it's the  message response.
+
+Note:
+ By defaut, the code consuming event must be non-blocking, as it is called on the vertx event loop. if your processing is blocking, use blocking attribute
+
+    @ConsumeEvent(blocking=true)
+    public String consume(String name) {
+        return name.toUpperCase();
+    }
+
+
+  or
+    @ConsumeEvent() 
+    @Blocking
+    public String consume(String name) {
+        return name.toUpperCase();
+    }
+
+Return Type of This Method
+
+1.Mutiny Type -  Uni or Multi
+2.CompletionStage
+
+Configuring Address:
+....................
+    @ConsumeEvent("greeting")
+    public String consume(String name) {
+        return name.toUpperCase();
+    }
+
+Messages are received in the greeting address
+.........
+Replying:
+   
+  The return value of a method annotated with @ConsumeEvent is used as response to the incoming message. 
+ 
+Return Async Message:
+ 
+    @Inject
+    ManagedExecutor executor;
+    @ConsumeEvent("greeting")
+    public Uni<String> consume(String name) {
+        return Uni.createFrom().item(()->name.toUpperCase()).emitOn(executor);
+    }
+....................................................................................
+		   Fire and Forgot Interactions- No Response
+....................................................................................
+
+Suppose you dont have to reply to received messages.Typically, for a fire and fogot interaction, the messages are consumed and the sender does not need to know about it.
+To implement this, method must return void.
+
+    @ConsumeEvent("greeting")
+    public void consume(String name) {
+        //do something with event...
+    }
+.....................................................................................
+		    Dealing Messges
+
+Instead of reading only data , we can read many other informations
+
+     @ConsumeEvent("greeting")
+    public void consume(Message<String> message) {
+        //do something with event...
+    }
+.....................................................................................
+			Sending Message
+.....................................................................................
+
+How to Publish and send Messages
+
+1.request/reply Pattern:
+
+package com.ibm.service.communication.eventbus;
+
+import io.quarkus.vertx.ConsumeEvent;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class GreetingService {
+
+    @ConsumeEvent("greeting")
+    public String consume(String name) {
+        return name.toUpperCase();
+    }
+}
+
+package com.ibm.service.communication.eventbus;
+
+import io.smallrye.mutiny.Uni;
+import io.vertx.mutiny.core.eventbus.EventBus;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+@Path("async")
+public class EventResource {
+    @Inject
+    EventBus eventBus;
+
+    @GET
+    @Path("{name}")
+    public Uni<String> greeting(@PathParam("name") String name) {
+        return eventBus.<String>request("greeting", name).onItem().transform(Message::body);
+    }
+}
+
+Testing:
+http://localhost:8080/async/subramanian
+
+....................................................................................
+			Fire and Forget Implementation
+...................................................................................
+package com.ibm.service.communication.eventbus;
+
+import io.quarkus.vertx.ConsumeEvent;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class GreetingService {
+
+    @ConsumeEvent("sink")
+    public void process(Message<String> msg) {
+        System.out.println("Address : " + msg.address());
+        System.out.println("Body " + msg.body());
+    }
+}
+
+
+package com.ibm.service.communication.eventbus;
+
+import io.smallrye.mutiny.Uni;
+import io.vertx.mutiny.core.eventbus.EventBus;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+@Path("async")
+public class EventResource {
+    @Inject
+    EventBus eventBus;
+
+    @Path("fireandForget")
+    @POST
+    public void process(String payload) {
+        eventBus.<String>requestAndForget("sink", payload);
+    }
+
+}
+.....................................................................................
+			Pub and Sub
+.....................................................................................
+
+One Producer, Multiple Subscribers
+Messages to be delivered to more than one Subscribers.
+
+package com.ibm.service.communication.eventbus;
+
+import io.quarkus.vertx.ConsumeEvent;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class NotificationService {
+
+    @ConsumeEvent("notification")
+    public void subscriberOne(Message<String> message) {
+        System.out.println("Subscriber One");
+        System.out.println(message.address() + " " + message.body());
+    }
+
+    @ConsumeEvent("notification")
+    public void subscriberTwo(Message<String> message) {
+        System.out.println("Subscriber Two");
+        System.out.println(message.address() + " " + message.body());
+
+    }
+
+    @ConsumeEvent("notification")
+    public void subscriberThree(Message<String> message) {
+        System.out.println("Subscriber Three");
+        System.out.println(message.address() + " " + message.body());
+
+    }
+}
+
+package com.ibm.service.communication.eventbus;
+
+import io.smallrye.mutiny.Uni;
+import io.vertx.mutiny.core.eventbus.EventBus;
+import io.vertx.mutiny.core.eventbus.Message;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+
+@Path("async")
+public class EventResource {
+    @Inject
+    EventBus eventBus;
+
+    @Path("{name}")
+    @GET
+    public Uni<String> greeting(@PathParam("name") String name) {
+        return eventBus.<String>request("greeting", name).onItem().transform(Message::body);
+    }
+
+    @Path("fireforgot")
+    @POST
+    public void process(String payload) {
+        eventBus.<String>requestAndForget("sink", payload);
+    }
+
+    @POST
+    @Path("publish")
+    public void publish(String message) {
+        eventBus.publish("notification", message);
+    }
+}
+
+
+
+
