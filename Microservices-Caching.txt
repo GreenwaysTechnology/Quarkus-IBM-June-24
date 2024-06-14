@@ -1,0 +1,115 @@
+				Microservices-Caching
+....................................................................................
+What is caching?
+
+ A cache is hardware or software that is used to store something, usually data, temporarily in computing env.
+
+Why Caching?
+   Caching will imporve performance of the application.
+
+API work flow...
+client----api(method)----database
+ method-statckframe----database --execute queries 
+client----api(method)----database -frame creation-query execution
+client----api(method)----database
+client----api(method)----database
+client----api(method)----database
+
+Caching workflow:
+Client----API---->Datasources
+Client---API----Cache<-----<Datasources
+
+Client---API---->Cache
+
+
+Quarkus and Cache:
+
+Quarkus can provide different way of caching:
+
+
+1.inMemory cache
+  Quarkus uses Data structure to store cache data
+2.Redis as Cache
+   Redis one of the most popular datastructure software , which is used primarily for 
+  caching.
+3.MemCache as Cache
+   MemMache is like redis.
+
+What ever cache providers you select, Quarkus provides Cache sepcification,through which you can write cache solution.
+
+Quarkus offers annotations
+
+1.@CacheResult
+  Loads a method from the cache without executing the body of the method
+2.@CacheInvalide
+   Removes entry from the cache
+3.@CacheInvalidateAll
+    Removes all entries from the cache...
+4.@CacheKey
+   When a method is annotated with @CacheKey, it is indefined as part of the cache key during invocation of a method annotated with @CacheResult or @CacheInvalidate.
+
+...
+
+Create Project
+Restapi
+redis integration
+ <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-cache</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-redis-cache</artifactId>
+    </dependency>
+
+application.properties
+quarkus.redis.devservices.image-name=redis/redis-stack-server:latest
+
+Note:
+ You can start redis server separatly or as dev server.
+
+
+package org.acme;
+
+import io.quarkus.cache.CacheInvalidate;
+import io.quarkus.cache.CacheResult;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import org.jboss.logging.Logger;
+
+@Path("/hello")
+public class GreetingResource {
+
+    @Inject
+    Logger logger;
+
+    @GET
+    @Produces(MediaType.TEXT_PLAIN)
+    @CacheResult(cacheName = "hello")
+    public String hello() {
+        logger.info("hello is called");
+        return "Hello from RESTEasy Reactive";
+    }
+    @DELETE
+    @CacheInvalidate(cacheName ="hello")
+    public void invalidCache(){
+
+    }
+}
+
+Testing:
+http://localhost:8080/hello
+
+YOu can watch redis server cli
+
+#redis-cli
+127.0.0.1:6379> keys *
+1) "cache:hello:default-cache-key"
+127.0.0.1:6379> get cache:hello:default-cache-key
+"Hello from RESTEasy Reactive"
+127.0.0.1:6379> 
+   

@@ -705,6 +705,7 @@ public CompletionStage<Void> consume(Message<Double> msg) {
 }
 
 Kafka stores data as records:
+
 if you want to access Kafka Records directly...
 
 @Incoming("prices")
@@ -878,6 +879,9 @@ public class PriceResource {
     }
 }
 .....................................................................................
+
+I am going to create project using code.quarkus.io website, the reason is we will have boiler plate code for kafka.
+
 
 Implementation:
 
